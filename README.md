@@ -33,4 +33,6 @@ On MacOS install it from [Determinate Systems](https://docs.determinate.systems/
 ```
 experimental-features = nix-command flakes
 ```
-This allows for the experimental flake to be used without complaint.
+This allows for the experimental flake to be used without complaint. 
+
+We use talosctl features that require `qemu`. As this might requir kernel features, we leave it up to you. 
