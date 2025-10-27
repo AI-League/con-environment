@@ -1,4 +1,12 @@
 
+# Structure & Objective
+
+This repo sets up a local, virtual k8 cluster with [talos](https://docs.siderolabs.com/talos/v1.11/overview/what-is-talos) that is close to the production hardware we use for conferences.
+
+- k8: charts + helm charts
+- nix: environment to have all the cli tools and a non-poluted k8 cluster
+- scripts: setup scripts we need for configuring the cluster
+- talos: patches for the talos cluster
 
 # Development
 
