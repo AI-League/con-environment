@@ -67,6 +67,7 @@ in
   environment = {
     imports = [
       inputs.services-flake.processComposeModules.default
+      (multiService ./tilt.nix)
       (multiService ./talos.nix)
       (multiService ./container_repository.nix)
     ];
@@ -110,7 +111,9 @@ in
           workers = 3;
           cpusWorkers = "4.0";
           memoryWorkers = 8192;
-          disk = 12188;
+          disk = 5120;
+          extra-disks = 2;
+          extra-disks-size = 6144;
           provisioner = "qemu";
           registryMirrors = [
             "docker.io=http://10.5.0.1:5000"
@@ -119,7 +122,7 @@ in
             "ghcr.io=http://10.5.0.1:5003"
           ];
           # This is defined in the .envrc
-          configPatches = ["./.data/ghcr-patch.yaml"];
+          #configPatches = ["./.data/ghcr-patch.yaml"];
         };
       };
       
@@ -145,7 +148,6 @@ in
     };
     settings.processes.tilt.depends_on = {
       cluster.condition = "process_log_ready";
-      storage.condition = "process_completed_successfully";
     };
   };
 }

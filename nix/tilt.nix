@@ -12,7 +12,7 @@ let
     ] ++ config.runtimeInputs;
 
     text = ''
-      ${lib.getExe config.package} up --host ${config.hostname}
+      ${lib.getExe config.package} up
     '';
   };
 in

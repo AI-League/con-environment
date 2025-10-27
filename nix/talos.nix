@@ -55,7 +55,9 @@ let
     # QEMU-specific options
     ++ (lib.optionals (config.provisioner == "qemu") (
       [
-         
+         "--extra-disks" (lib.escapeShellArg config.extra-disks)
+         "--extra-disks-size" (lib.escapeShellArg config.extra-disks-size)
+         "--extra-disks-drivers" (lib.escapeShellArg config.extra-disks-drivers)
          "--disk" (lib.escapeShellArg config.disk)
          "--initrd-path" (lib.escapeShellArg talosInitramfs)
          "--vmlinuz-path" (lib.escapeShellArg talosKernel)
@@ -230,6 +232,24 @@ in
     disk = mkOption {
       type = types.int;
       default = 6144;
+      description = "Disk size in MB for each node.";
+    };
+
+    extra-disks = mkOption {
+      type = types.int;
+      default = 0;
+      description = "Disk size in MB for each node.";
+    };
+
+    extra-disks-size = mkOption {
+      type = types.int;
+      default = 5120;
+      description = "Disk size in MB for each node.";
+    };
+
+    extra-disks-drivers = mkOption {
+      type = types.enum ["virtio" "ide" "ahci" "scsi" "nvme" "megaraid"];
+      default = 5120;
       description = "Disk size in MB for each node.";
     };
 
