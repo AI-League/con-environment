@@ -5,3 +5,5 @@ result-*
 # Ignore automatically generated direnv output
 .direnv
 .data
+.envhost
+.env

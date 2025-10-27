@@ -56,30 +56,11 @@ in
         export KUBECONFIG="$DATA_DIR/talos/kubeconfig"
         export TALOSCONFIG="$DATA_DIR/talos/talosconfig"
         export TALOS_STATE_DIR="$DATA_DIR/talos"
-        export ZDOTDIR="$DATA_DIR/zdotdir"
-        export HISTFILE="$ZDOTDIR/.zsh_history"
         export DIRENV_WARN_TIMEOUT=0
-        export XDG_RUNTIME_DIR=/run/user/$UID
-        export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/docker.sock
         export TF_DATA_DIR="$PROJECT_ROOT/.data/terraform"
         export TF_VAR_kubeconfig="$KUBECONFIG"
         export MC_CONFIG_DIR="$PROJECT_ROOT/.data/minio"
         export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [ pkgs.openssl ]}:$LD_LIBRARY_PATH"
-
-
-        # Create .zsh_history if it doesn't exist
-        if [ ! -f "$HISTFILE" ]; then
-          touch "$HISTFILE"
-        fi
-
-        
-        cat > "$ZDOTDIR/.zshrc" << 'ZSHRC'
-        ${zshrc-k8}
-        ZSHRC
-        export PROMPT="[thol-k8] $PROMPT"
-        
-        # Launch zsh with our configuration
-        exec ${pkgs.zsh}/bin/zsh
       '';
   };
 
@@ -91,14 +72,6 @@ in
     ];
     
     services = {
-      local_compiler = {
-        compiler = {
-          enable = true;
-          dataDir = ".data/compiler";
-          port = 7070;
-        };
-      };
-      
       container_repository = {
         docker = {
           enable = true;
@@ -159,7 +132,6 @@ in
           ];
           environment = {
             KUBECONFIG = ".data/talos/kubeconfig";
-            HOSTNAME = hostSystemName;
           };
         };
       };

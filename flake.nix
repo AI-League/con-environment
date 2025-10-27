@@ -34,14 +34,12 @@
           projectRoot = (builtins.getEnv "PROJECT_ROOT");
 
           dev_shell = import ./nix/dev_shell.nix {
-            inherit inputs pkgs fenix hostSystemName projectRoot system;
+            inherit inputs pkgs projectRoot system;
           };
 
         in
         {
-          inherit (pyroduct) packages;
-
-          process-compose."default" = dev_shell;
+          process-compose."default" = dev_shell.environment;
           devShells.default = dev_shell.shell;
         };
     };

@@ -1,0 +1,145 @@
+{
+  "nodes": {
+    "fenix": {
+      "inputs": {
+        "nixpkgs": "nixpkgs",
+        "rust-analyzer-src": "rust-analyzer-src"
+      },
+      "locked": {
+        "lastModified": 1761547629,
+        "narHash": "sha256-4OH1CVm2PdjKRqEJ3RLfkQMDSBdn7VId6iyYCwKOK+U=",
+        "owner": "nix-community",
+        "repo": "fenix",
+        "rev": "d82a7c64ea441e397914577c9a18f2867e5b364b",
+        "type": "github"
+      },
+      "original": {
+        "id": "fenix",
+        "type": "indirect"
+      }
+    },
+    "flake-parts": {
+      "inputs": {
+        "nixpkgs-lib": "nixpkgs-lib"
+      },
+      "locked": {
+        "lastModified": 1760948891,
+        "narHash": "sha256-TmWcdiUUaWk8J4lpjzu4gCGxWY6/Ok7mOK4fIFfBuU4=",
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "rev": "864599284fc7c0ba6357ed89ed5e2cd5040f0c04",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1761373498,
+        "narHash": "sha256-Q/uhWNvd7V7k1H1ZPMy/vkx3F8C13ZcdrKjO7Jv7v0c=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "6a08e6bb4e46ff7fcbb53d409b253f6bad8a28ce",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs-lib": {
+      "locked": {
+        "lastModified": 1754788789,
+        "narHash": "sha256-x2rJ+Ovzq0sCMpgfgGaaqgBSwY+LST+WbZ6TytnT9Rk=",
+        "owner": "nix-community",
+        "repo": "nixpkgs.lib",
+        "rev": "a73b9c743612e4244d865a2fdee11865283c04e6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "nixpkgs.lib",
+        "type": "github"
+      }
+    },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1761373498,
+        "narHash": "sha256-Q/uhWNvd7V7k1H1ZPMy/vkx3F8C13ZcdrKjO7Jv7v0c=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "6a08e6bb4e46ff7fcbb53d409b253f6bad8a28ce",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "process-compose-flake": {
+      "locked": {
+        "lastModified": 1761063998,
+        "narHash": "sha256-l14CiQZM2ZpWp6leugJ5/GKU1aydT/xrvyKRMgYc0ak=",
+        "owner": "Platonic-Systems",
+        "repo": "process-compose-flake",
+        "rev": "d1839830cd4a814830a27b3cb58437306747bbd3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Platonic-Systems",
+        "repo": "process-compose-flake",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "fenix": "fenix",
+        "flake-parts": "flake-parts",
+        "nixpkgs": "nixpkgs_2",
+        "process-compose-flake": "process-compose-flake",
+        "services-flake": "services-flake"
+      }
+    },
+    "rust-analyzer-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1761500479,
+        "narHash": "sha256-syeBTCCU96qPJHcVpwHeCwmPCiLTDHHgYQYhpZ0iwLo=",
+        "owner": "rust-lang",
+        "repo": "rust-analyzer",
+        "rev": "049767e6faa84b2d1a951d8f227e6ebd99d728a2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "rust-lang",
+        "ref": "nightly",
+        "repo": "rust-analyzer",
+        "type": "github"
+      }
+    },
+    "services-flake": {
+      "locked": {
+        "lastModified": 1761439612,
+        "narHash": "sha256-W9yaXV9ypX/KIBMSVFgT+bb1TffkdbQJo1Q4S+6/lyY=",
+        "owner": "juspay",
+        "repo": "services-flake",
+        "rev": "05da58c2450c50aed1333d04e760ecbf29e6522e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "juspay",
+        "repo": "services-flake",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
