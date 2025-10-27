@@ -35,4 +35,4 @@ experimental-features = nix-command flakes
 ```
 This allows for the experimental flake to be used without complaint. 
 
-We use talosctl features that require `qemu`. As this might requir kernel features, we leave it up to you. 
+We use talosctl features that require `qemu`. As this might require kernel features, we leave it up to you. 

@@ -111,7 +111,7 @@ in
           workers = 3;
           cpusWorkers = "4.0";
           memoryWorkers = 8192;
-          disk = 5120;
+          disk = 6144;
           extra-disks = 2;
           extra-disks-size = 6144;
           provisioner = "qemu";

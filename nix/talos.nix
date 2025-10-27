@@ -249,7 +249,7 @@ in
 
     extra-disks-drivers = mkOption {
       type = types.enum ["virtio" "ide" "ahci" "scsi" "nvme" "megaraid"];
-      default = 5120;
+      default = "virtio";
       description = "Disk size in MB for each node.";
     };
 
