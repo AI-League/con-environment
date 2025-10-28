@@ -1,7 +1,7 @@
 apiVersion: ceph.rook.io/v1
 kind: CephObjectStore
 metadata:
-  name: aiv_store
+  name: aivstore
   namespace: rook-ceph
 spec:
   metadataPool:

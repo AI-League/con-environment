@@ -382,12 +382,18 @@ in
   config = mkIf config.enable {
     outputs.settings.processes = {
       "${name}-setup" = {
+        environment = {
+          KUBECONFIG = KUBECONFIG;
+        };
         command = setupScript;
         #is_one_shot = true;
       };
 
       "${name}" = {
         command = startScript;
+        environment = {
+          KUBECONFIG = KUBECONFIG;
+        };
         
         depends_on."${name}-setup".condition = "process_completed_successfully";
         is_daemon = true;

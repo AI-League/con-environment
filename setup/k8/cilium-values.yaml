@@ -1,0 +1,71 @@
+# IPAM mode
+ipam:
+  mode: kubernetes
+
+# Disable kube-proxy and use Cilium's eBPF replacement
+kubeProxyReplacement: true
+
+# Security context capabilities for Talos
+securityContext:
+  capabilities:
+    ciliumAgent:
+      - CHOWN
+      - KILL
+      - NET_ADMIN
+      - NET_RAW
+      - IPC_LOCK
+      - SYS_ADMIN
+      - SYS_RESOURCE
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    cleanCiliumState:
+      - NET_ADMIN
+      - SYS_ADMIN
+      - SYS_RESOURCE
+
+# Cgroup configuration for Talos
+cgroup:
+  autoMount:
+    enabled: false
+  hostRoot: /sys/fs/cgroup
+
+# Kubernetes API server configuration
+k8sServiceHost: localhost
+k8sServicePort: 7445
+
+# DNS proxy for your *.local routing
+dnsproxy:
+  enabled: true
+
+# Enable Hubble for observability
+hubble:
+  enabled: true
+  relay:
+    enabled: true
+  ui:
+    enabled: true
+
+# Enable local redirect policy for your namespaces
+localRedirectPolicy: true
+
+# Ingress controller (for routing to your demos/workshops pods)
+ingressController:
+  enabled: true
+  default: false
+  loadbalancerMode: shared
+
+# Tunnel mode
+tunnelProtocol: vxlan
+
+# CNI configuration
+cni:
+  chainingMode: none
+  exclusive: true
+
+# Gateway
+gatewayAPI:
+  enabled: true
+  enableAlpn : true
+  enableAppProtocol : true

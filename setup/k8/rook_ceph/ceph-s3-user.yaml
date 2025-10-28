@@ -1,8 +1,8 @@
 apiVersion: ceph.rook.io/v1
 kind: CephObjectStoreUser
 metadata:
-  name: aiv_user
+  name: aivuser
   namespace: rook-ceph
 spec:
-  store: aiv_store
+  store: aivstore
   displayName: "My Application User"

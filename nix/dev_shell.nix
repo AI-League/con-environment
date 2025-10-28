@@ -10,6 +10,8 @@ let
     tilt
     openssl
     zsh
+    k9s
+    cilium-cli
   ];
 in
 {
@@ -98,6 +100,12 @@ in
           dataDir = ".data/repo/ghcr";
           localPort = 5003;
         };
+        quay = {
+          enable = true;
+          remoteUrl = "https://quay.io";
+          dataDir = ".data/repo/quay";
+          localPort = 5004;
+        };
       };
 
       talos = {
@@ -111,7 +119,7 @@ in
           workers = 3;
           cpusWorkers = "4.0";
           memoryWorkers = 8192;
-          disk = 6144;
+          disk = 12188;
           extra-disks = 2;
           extra-disks-size = 6144;
           provisioner = "qemu";
@@ -120,9 +128,10 @@ in
             "registry.k8s.io=http://10.5.0.1:5001"
             "gcr.io=http://10.5.0.1:5002"
             "ghcr.io=http://10.5.0.1:5003"
+            "quay.io=http://10.5.0.1:5004"
           ];
           # This is defined in the .envrc
-          #configPatches = ["./.data/ghcr-patch.yaml"];
+          configPatches = ["setup/talos/cilium.yaml"];#"./.data/ghcr-patch.yaml"];
         };
       };
       
