@@ -30,11 +30,8 @@
 
       perSystem = { config, self', pkgs, system, lib, ... }:
         let
-          # impure, but needed for devshells.
-          projectRoot = (builtins.getEnv "PROJECT_ROOT");
-
           dev_shell = import ./nix/dev_shell.nix {
-            inherit inputs pkgs projectRoot system;
+            inherit inputs pkgs system;
           };
 
         in

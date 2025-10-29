@@ -3,21 +3,12 @@
 let
   inherit (lib) types mkOption;
 
-  values = builtins.readFile ./setup/k8/cilium-values.yaml;
-
-  # Fetch the Cilium Helm chart directly
-  ciliumChart = pkgs.fetchurl {
-    url = "https://github.com/cilium/charts/releases/download/cilium-1.16.5/cilium-1.16.5.tgz";
-    sha256 = lib.fakeSha256; # You'll need to update this
-  };
-
   # This creates a shell script in the Nix store that contains all our commands.
   setupScript = pkgs.writeShellApplication {
     name = "create_cilium_patch";
     
     # This ensures helm and kubectl are available in the script's PATH at runtime.
     runtimeInputs = [
-      config.kubectlPackage
       config.helmPackage
     ];
 
@@ -27,9 +18,10 @@ let
       OUTPUT_FILE="${config.dataDir}/cilium.yaml"
 
       echo "Generating Cilium manifests from local chart..."
-      CILIUM_CHART=$(helm template cilium ${ciliumChart} \
+      CILIUM_CHART=$(helm template cilium cilium/cilium \
         --namespace kube-system \
-        --values ${(lib.escapeShellArg values)})
+        --version "${config.version}" \
+        --values ${(lib.escapeShellArg config.values)})
 
       mkdir -p ${config.dataDir}
       echo "Creating Talos patch..."
@@ -48,7 +40,10 @@ let
               ---
       EOF
 
-      echo "$CILIUM_CHART" | sed 's/^/        /' >> "$OUTPUT_FILE"
+      # Add indentation line by line to satisfy shellcheck SC2001
+      echo "$CILIUM_CHART" | while IFS= read -r line; do
+        echo "        $line" >> "$OUTPUT_FILE"
+      done
 
       echo "✓ Patch written to $OUTPUT_FILE"
     '';
@@ -57,6 +52,17 @@ let
 in
 {
   options = {
+    values = mkOption {
+      type = types.path;
+      description = "The values to use.";
+    };
+
+    version = mkOption {
+      type = types.str;
+      default = "v1.18.3";
+      description = "The values to use.";
+    };
+
     helmPackage = mkOption {
       type = types.package;
       default = pkgs.kubernetes-helm;

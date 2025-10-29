@@ -3,16 +3,13 @@
 let
   inherit (lib) types mkOption;
 
-  # Fetch the Rook Ceph operator chart
   rookCephChart = pkgs.fetchurl {
     url = "https://charts.rook.io/release/rook-ceph-v1.15.8.tgz";
-    sha256 = lib.fakeSha256; # Update with actual hash
+    sha256 = "sha256-R+xLp0u4h5KWHVnOqR12N1vgEgRZMzzHm1q8sWMF164=";
   };
-
-  # Fetch the Rook Ceph cluster chart
   rookCephClusterChart = pkgs.fetchurl {
     url = "https://charts.rook.io/release/rook-ceph-cluster-v1.15.8.tgz";
-    sha256 = lib.fakeSha256; # Update with actual hash
+    sha256 = "sha256-7wYL0te8jKQKmbNbBuO+a0mx7re940bj0ctPl1Exp+s="; 
   };
 
   setupScript = pkgs.writeShellApplication {

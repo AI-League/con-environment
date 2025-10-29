@@ -1,4 +1,4 @@
-{ inputs, pkgs, projectRoot, system, ... }:
+{ inputs, pkgs, system, ... }:
 let 
   inherit (inputs.services-flake.lib) multiService;
 
@@ -111,7 +111,9 @@ in
         };
       };
 
-      cilium-patch."patch" = {
+      cilium-patch."patch0" = {
+        enable = true;
+        values = ../setup/k8/cilium-values.yaml;
         dataDir = ".data/talos-patches";
       };
 
@@ -142,11 +144,10 @@ in
         };
       };
 
-      ceph = {
-        storage = {
-          kubeconfig = ".data/talos/kubeconfig";
-          configDir = ./setup/k8/rook-ceph;
-        };
+      ceph."storage" = {
+        enable = true;
+        kubeconfig = ".data/talos/kubeconfig";
+        configDir = ./setup/k8/rook-ceph;
       };
       
       tilt = {
@@ -168,7 +169,10 @@ in
       k8s.condition = "process_started";
       gcr.condition = "process_started";
       ghcr.condition = "process_started";
-      patch.condition = "process_completed_successfully";
+      patch0.condition = "process_completed_successfully";
+    };
+    settings.processes.storage.depends_on = {
+      cluster.condition = "process_log_ready";
     };
     settings.processes.tilt.depends_on = {
       storage.condition = "process_log_ready";
