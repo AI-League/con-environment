@@ -31,6 +31,7 @@ let
         --namespace kube-system \
         --values ${(lib.escapeShellArg values)})
 
+      mkdir -p ${config.dataDir}
       echo "Creating Talos patch..."
       cat > "$OUTPUT_FILE" <<'EOF'
       # This is stored in .data and not checked in.

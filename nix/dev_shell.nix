@@ -22,6 +22,7 @@ in
     dotenv = ''
 
     '';
+    
     in
     pkgs.mkShell {
       name = "aiv-k8-dev";
@@ -110,7 +111,7 @@ in
         };
       };
 
-      cilium-patch."patch0" = {
+      cilium-patch."patch" = {
         dataDir = ".data/talos-patches";
       };
 
@@ -143,8 +144,8 @@ in
 
       ceph = {
         storage = {
-          kubeconfig = KUBECONFIG;
-          configDir = ./setup/k8/rook-ceph
+          kubeconfig = ".data/talos/kubeconfig";
+          configDir = ./setup/k8/rook-ceph;
         };
       };
       
@@ -167,7 +168,7 @@ in
       k8s.condition = "process_started";
       gcr.condition = "process_started";
       ghcr.condition = "process_started";
-      patch0.condition = "process_completed_successfully";
+      patch.condition = "process_completed_successfully";
     };
     settings.processes.tilt.depends_on = {
       storage.condition = "process_log_ready";
