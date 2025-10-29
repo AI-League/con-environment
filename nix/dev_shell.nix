@@ -70,7 +70,9 @@ in
     imports = [
       inputs.services-flake.processComposeModules.default
       (multiService ./tilt.nix)
+      (multiService ./ceph.nix)
       (multiService ./talos.nix)
+      (multiService ./cilium-patch.nix)
       (multiService ./container_repository.nix)
     ];
     
@@ -108,6 +110,10 @@ in
         };
       };
 
+      cilium-patch."patch0" = {
+        dataDir = ".data/talos-patches";
+      };
+
       talos = {
         cluster = {
           enable = true;
@@ -131,7 +137,14 @@ in
             "quay.io=http://10.5.0.1:5004"
           ];
           # This is defined in the .envrc
-          configPatches = ["setup/talos/cilium.yaml"];#"./.data/ghcr-patch.yaml"];
+          configPatches = [".data/talos-patches/cilium.yaml"];
+        };
+      };
+
+      ceph = {
+        storage = {
+          kubeconfig = KUBECONFIG;
+          configDir = ./setup/k8/rook-ceph
         };
       };
       
@@ -154,8 +167,10 @@ in
       k8s.condition = "process_started";
       gcr.condition = "process_started";
       ghcr.condition = "process_started";
+      patch0.condition = "process_completed_successfully";
     };
     settings.processes.tilt.depends_on = {
+      storage.condition = "process_log_ready";
       cluster.condition = "process_log_ready";
     };
   };

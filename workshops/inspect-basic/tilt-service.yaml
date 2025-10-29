@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inspect-basic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inspect-basic
+  template:
+    metadata:
+      labels:
+        app: inspect-basic
+    spec:
+      containers:
+      - name: inspect-basic
+        image: inspect-basic
+        ports:
+        - containerPort: 50051
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: GRPC_VERBOSITY
+          value: "INFO"
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: GEMINI_API_KEY
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inspect-basic
+spec:
+  selector:
+    app: inspect-basic
+  ports:
+  - port: 50051
+    targetPort: 50051
