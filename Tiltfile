@@ -1,7 +1,14 @@
+allow_k8s_contexts('admin@talos-local')
+hostname = os.getenv("HOSTNAME", "localhost")
 default_registry(
-    'ghcr.io/aivillage',
+    'ghcr.io/nbhdai',
 )
 update_settings(max_parallel_updates=5)
+
+k8s_yaml('./setup/k8/model-proxy.yaml')
+k8s_resource('ai-proxy',
+    labels=['setup']
+)
 
 docker_build(
     'workshop-inspect-basic',

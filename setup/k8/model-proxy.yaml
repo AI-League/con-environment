@@ -1,0 +1,117 @@
+---
+### NGINX ConfigMap with Multi-API Routing
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-proxy-conf
+data:
+  default.conf.template: |
+    # Use Kubernetes internal DNS
+    resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+
+    server {
+        listen 8080;
+        
+        # --- OpenAI Route ---
+        location /openai/ {
+            # Trailing slash strips the /openai/ prefix
+            proxy_pass https://api.openai.com/; 
+            proxy_set_header Host api.openai.com;
+            proxy_set_header Authorization "Bearer \$OPENAI_API_KEY";
+            
+            # Clear any auth header from the original client
+            proxy_set_header "Authorization" "";
+        }
+
+        # --- Gemini Route ---
+        location /gemini/ {
+            # Trailing slash strips the /gemini/ prefix
+            proxy_pass https://generativelanguage.googleapis.com/;
+            proxy_set_header Host generativelanguage.googleapis.com;
+            
+            # Gemini uses a different header
+            proxy_set_header x-goog-api-key \$GEMINI_API_KEY; 
+        }
+
+        # --- Anthropic Route ---
+        location /anthropic/ {
+            # Trailing slash strips the /anthropic/ prefix
+            proxy_pass https://api.anthropic.com/;
+            proxy_set_header Host api.anthropic.com;
+            
+            # Anthropic uses 'x-api-key' and a version header
+            proxy_set_header x-api-key \$ANTHROPIC_API_KEY;
+            proxy_set_header anthropic-version "2023-06-01";
+        }
+    }
+---
+### NGINX Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-proxy
+  template:
+    metadata:
+      labels:
+        app: ai-proxy
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.27-alpine
+        ports:
+        - containerPort: 8080
+        env:
+          # 1. Load ALL keys from the 'api-keys' secret
+          - name: OPENAI_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: api-keys
+                key: OPENAI_API_KEY
+          - name: GEMINI_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: api-keys
+                key: GEMINI_API_KEY
+          - name: ANTHROPIC_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: api-keys
+                key: ANTHROPIC_API_KEY
+        
+        volumeMounts:
+        - name: nginx-conf-template
+          mountPath: /etc/nginx/templates
+          readOnly: true
+        - name: nginx-conf-output
+          mountPath: /etc/nginx/conf.d
+        
+        # 2. Substitute ALL env vars into the template on startup
+        command: ["/bin/sh", "-c"]
+        args:
+          - "envsubst '$OPENAI_API_KEY $GEMINI_API_KEY $ANTHROPIC_API_KEY' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
+
+      volumes:
+      - name: nginx-conf-template
+        configMap:
+          name: nginx-proxy-conf
+      - name: nginx-conf-output
+        emptyDir: {}
+---
+### NGINX ClusterIP Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-proxy-svc # Renamed to be more general
+spec:
+  type: ClusterIP 
+  selector:
+    app: ai-proxy # Matches the Deployment's pods
+  ports:
+  - protocol: TCP
+    port: 80 # The port your OTHER services will call
+    targetPort: 8080 # The port NGINX is listening on

@@ -18,7 +18,7 @@ USER coder
 RUN code-server --install-extension ms-python.python
 
 # Install inspect-ai extension (adjust if you have a specific extension ID)
-RUN code-server --install-extension inspect-ai.inspect
+RUN code-server --install-extension ukaisi.inspect-ai
 
 # Copy your workspace files
 # COPY --chown=coder:coder ./your-workspace /home/coder/workspace

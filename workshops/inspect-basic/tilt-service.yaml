@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: inspect-basic
-        image: inspect-basic
+        image: workshop-inspect-basic
         ports:
         - containerPort: 50051
         env:
@@ -22,11 +22,18 @@ spec:
           value: "1"
         - name: GRPC_VERBOSITY
           value: "INFO"
-        - name: GEMINI_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: api-keys
-              key: GEMINI_API_KEY
+        - name: OPENAI_API_KEY
+          value: "hidden"
+        - name: OPENAI_BASE_URL
+          value: "ai-proxy/openai/"
+        - name: GOOGLE_API_KEY
+          value: "hidden"
+        - name: GOOGLE_BASE_URL
+          value: "ai-proxy/gemini/"
+        - name: ANTHROPIC_API_KEY
+          value: "hidden"
+        - name: ANTHROPIC_BASE_URL
+          value: "ai-proxy/anthropic/"
 ---
 apiVersion: v1
 kind: Service

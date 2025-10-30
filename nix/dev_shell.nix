@@ -1,4 +1,4 @@
-{ inputs, pkgs, system, ... }:
+{ inputs, pkgs, system, hostSystemName, ... }:
 let 
   inherit (inputs.services-flake.lib) multiService;
 
@@ -43,7 +43,7 @@ in
         if [ -f .envhost ]; then
           set -a; source .envhost; set +a
           export GHCR_AUTH_STRING=$(echo -n "$GITHUB_USERNAME:$GHCR_PAT" | base64 -w 0)
-          cat > "$DATA_DIR/ghcr-patch.yaml" << PATCH
+          cat > "$DATA_DIR/talos-patches/ghcr.yaml" << PATCH
           machine:
             registries:
               config:
@@ -53,6 +53,8 @@ in
             time:
               bootTimeout: 2m
         PATCH
+          echo "$GHCR_PAT" | docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin
+          echo "$DH_PAT" | docker login -u "$DH_UNAME" --password-stdin
         fi
 
         export TALOS_VERSION="v1.11.0"
@@ -139,26 +141,29 @@ in
             "ghcr.io=http://10.5.0.1:5003"
             "quay.io=http://10.5.0.1:5004"
           ];
-          # This is defined in the .envrc
-          configPatches = [".data/talos-patches/cilium.yaml"];
+          # This is defined in the .envrc. These can't be paths as they're not checked in.
+          configPatches = [
+            ".data/talos-patches/cilium.yaml"
+            ".data/talos-patches/ghcr.yaml"
+          ];
         };
       };
 
       ceph."storage" = {
         enable = true;
         kubeconfig = ".data/talos/kubeconfig";
-        configDir = ./setup/k8/rook-ceph;
+        configDir = ../setup/k8/rook-ceph;
       };
       
       tilt = {
         tilt = {
           enable = true;
           dataDir = ".data/postgres";
-          runtimeInputs = [
-            pkgs.minio-client
-          ];
+          hostname = hostSystemName;
+          runtimeInputs = [];
           environment = {
             KUBECONFIG = ".data/talos/kubeconfig";
+            HOSTNAME = hostSystemName;
           };
         };
       };

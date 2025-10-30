@@ -30,8 +30,10 @@
 
       perSystem = { config, self', pkgs, system, lib, ... }:
         let
+          hostSystemName = (builtins.getEnv "DEV_HOSTNAME");
+
           dev_shell = import ./nix/dev_shell.nix {
-            inherit inputs pkgs system;
+            inherit inputs pkgs system hostSystemName;
           };
 
         in

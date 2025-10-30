@@ -29,6 +29,11 @@ in
       default = [];
       description = "Extra packages tilt may need to execute";
     };
+    hostname = lib.mkOption {
+      type = types.attrsOf types.str;
+      default = "localhost";
+      description = "Extra packages tilt may need to execute";
+    };
     environment = lib.mkOption {
       type = types.attrsOf types.str;
       default = {};

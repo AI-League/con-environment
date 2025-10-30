@@ -44,22 +44,8 @@ helm install --create-namespace --namespace rook-ceph rook-ceph-cluster \
 log_info "Cluster installed"
 echo ""
 
-# Step 5: Apply custom configurations from k8/rook_ceph
+# Step 5: Apply custom configurations from setup/k8/rook-ceph
 log_step "5/6: Applying Rook Ceph configurations..."
-if [ -d "k8/rook_ceph" ]; then
-    kubectl apply -f k8/rook_ceph/
-    log_info "Configurations applied from k8/rook_ceph/"
-else
-    log_info "No additional configurations found in k8/rook_ceph/"
-fi
-echo ""
 
-echo "=========================================="
-echo "✅ Rook Ceph installation complete!"
-echo "=========================================="
-echo ""
-log_info "Next steps:"
-echo "  1. Run tests: ./setup/tests/test-rook-ceph.sh"
-echo "  2. Check cluster status:"
-echo "     kubectl -n rook-ceph exec -it deploy/rook-ceph-tools -- ceph status"
+kubectl apply -f setup/k8/rook-ceph/
 echo ""

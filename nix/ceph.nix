@@ -48,12 +48,13 @@ let
         sleep 5
       done
       
-      TIMEOUT=600
+      TIMEOUT=1200
       ELAPSED=0
       while [ $ELAPSED -lt $TIMEOUT ]; do
+        kubectl get cephcluster -n rook-ceph rook-ceph
         HEALTH=$(kubectl -n rook-ceph get cephcluster rook-ceph -o jsonpath='{.status.ceph.health}' 2>&1 || echo "UNKNOWN")
-        echo "Ceph cluster health: $HEALTH ($ELAPSED/$TIMEOUT seconds)"
         if [ "$HEALTH" = "HEALTH_OK" ] || [ "$HEALTH" = "HEALTH_WARN" ]; then
+          echo "Rook Ceph cluster ready"
           break
         fi
         sleep 10

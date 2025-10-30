@@ -2,7 +2,7 @@
 set -euo pipefail
 
 CILIUM_VERSION="1.16.5"
-VALUES_FILE="k8/cilium-values.yaml"
+VALUES_FILE="setup/k8/cilium-values.yaml"
 OUTPUT_FILE="talos/cilium.yaml"
 
 echo "Generating Cilium manifests..."
