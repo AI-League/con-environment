@@ -25,15 +25,15 @@ spec:
         - name: OPENAI_API_KEY
           value: "hidden"
         - name: OPENAI_BASE_URL
-          value: "ai-proxy/openai/"
+          value: "http://ai-proxy-svc/openai/"
         - name: GOOGLE_API_KEY
           value: "hidden"
         - name: GOOGLE_BASE_URL
-          value: "ai-proxy/gemini/"
+          value: "http://ai-proxy-svc/gemini/"
         - name: ANTHROPIC_API_KEY
           value: "hidden"
         - name: ANTHROPIC_BASE_URL
-          value: "ai-proxy/anthropic/"
+          value: "http://ai-proxy-svc/anthropic/"
 ---
 apiVersion: v1
 kind: Service

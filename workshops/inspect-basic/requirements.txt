@@ -1,0 +1,4 @@
+inspect-ai
+openai
+anthropic
+google-genai

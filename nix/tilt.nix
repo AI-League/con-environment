@@ -12,7 +12,7 @@ let
     ] ++ config.runtimeInputs;
 
     text = ''
-      ${lib.getExe config.package} up
+      ${lib.getExe config.package} up --host ${config.hostname}
     '';
   };
 in
@@ -30,7 +30,7 @@ in
       description = "Extra packages tilt may need to execute";
     };
     hostname = lib.mkOption {
-      type = types.attrsOf types.str;
+      type = types.str;
       default = "localhost";
       description = "Extra packages tilt may need to execute";
     };

@@ -5,9 +5,17 @@ default_registry(
 )
 update_settings(max_parallel_updates=5)
 
+local_resource(
+    'secrets',
+    labels=['setup'],
+    deps=['.envhost'],  
+    cmd='./setup/scripts/create-secrets.sh',
+)
+
 k8s_yaml('./setup/k8/model-proxy.yaml')
 k8s_resource('ai-proxy',
-    labels=['setup']
+    labels=['setup'],
+    resource_deps=['secrets'],
 )
 
 docker_build(
@@ -17,6 +25,7 @@ docker_build(
 
 k8s_yaml('./workshops/inspect-basic/tilt-service.yaml')
 k8s_resource('inspect-basic',
-    port_forwards='50051:50051',
-    labels=['workshops']
+    port_forwards='50051:8080',
+    labels=['workshops'],
+    resource_deps=['ai-proxy'],
 )
