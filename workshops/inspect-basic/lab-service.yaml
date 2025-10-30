@@ -2,11 +2,10 @@
 # --- Ingress Configuration ---
 ingress:
   enabled: true
-  ingressClassName: "cilium" #
+  ingressClassName: "cilium"
   hosts:
     - "inspect-basic.local"
 
-# --- Workshop Container Configuration ---
 
 singleuser:
   # 1. Point to your new image that contains code-server

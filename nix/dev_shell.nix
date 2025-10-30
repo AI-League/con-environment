@@ -129,10 +129,10 @@ in
           memory = 8192;
           workers = 3;
           cpusWorkers = "4.0";
-          memoryWorkers = 8192;
-          disk = 12188;
+          memoryWorkers = 12188;
+          disk = 8192;
           extra-disks = 2;
-          extra-disks-size = 12188;
+          extra-disks-size = 8192;
           provisioner = "qemu";
           registryMirrors = [
             "docker.io=http://10.5.0.1:5000"
@@ -149,10 +149,17 @@ in
         };
       };
 
-      ceph."storage" = {
+      # Virtual cluster doesn't handle ceph well.
+
+      # ceph."storage" = {
+      #   enable = true;
+      #   kubeconfig = ".data/talos/kubeconfig";
+      #   configDir = ../setup/k8/rook-ceph;
+      # };
+
+      local_path_storage."storage" = {
         enable = true;
         kubeconfig = ".data/talos/kubeconfig";
-        configDir = ../setup/k8/rook-ceph;
       };
       
       tilt = {

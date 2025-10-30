@@ -13,13 +13,13 @@ echo ""
 
 # Test 1: Ceph cluster health
 # It's reporting "health_err", but the rest pass?
-# echo "TEST: Ceph cluster health"
-# HEALTH=$(kubectl -n rook-ceph get cephcluster -o jsonpath='{.items[0].status.ceph.health}' 2>/dev/null || echo "UNKNOWN")
-# if [ "$HEALTH" = "HEALTH_OK" ]; then
-#     pass "Ceph cluster healthy"
-# else
-#     fail "Ceph cluster not healthy: $HEALTH"
-# fi
+echo "TEST: Ceph cluster health"
+HEALTH=$(kubectl -n rook-ceph get cephcluster -o jsonpath='{.items[0].status.ceph.health}' 2>/dev/null || echo "UNKNOWN")
+if [ "$HEALTH" = "HEALTH_OK" ]; then
+    pass "Ceph cluster healthy"
+else
+    fail "Ceph cluster not healthy: $HEALTH"
+fi
 
 # Test 2: Storage class PVC
 echo "TEST: Storage class"

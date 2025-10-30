@@ -4,12 +4,12 @@ let
   inherit (lib) types mkOption;
 
   rookCephChart = pkgs.fetchurl {
-    url = "https://charts.rook.io/release/rook-ceph-v1.15.8.tgz";
-    sha256 = "sha256-R+xLp0u4h5KWHVnOqR12N1vgEgRZMzzHm1q8sWMF164=";
+    url = "https://charts.rook.io/release/rook-ceph-v1.18.6.tgz";
+    sha256 = "sha256-ju9OwhsT+qSgrAPISL+B4Xnx7npxpBuw4HYndO29/ko=";
   };
   rookCephClusterChart = pkgs.fetchurl {
-    url = "https://charts.rook.io/release/rook-ceph-cluster-v1.15.8.tgz";
-    sha256 = "sha256-7wYL0te8jKQKmbNbBuO+a0mx7re940bj0ctPl1Exp+s="; 
+    url = "https://charts.rook.io/release/rook-ceph-cluster-v1.18.6.tgz";
+    sha256 = "sha256-JNPb6HgymtEijgamxzmeMWpbDqrnShU3lNVw+KIf/v8="; 
   };
 
   setupScript = pkgs.writeShellApplication {
