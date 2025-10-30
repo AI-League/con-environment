@@ -38,17 +38,17 @@ spec:
       storage: 1Gi
 EOF
 
-if kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/$TEST_PVC -n default --timeout=60s >/dev/null 2>&1; then
+if kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/$TEST_PVC -n default --timeout=60s; then
     pass "PVC bound successfully"
-    kubectl delete pvc $TEST_PVC -n default >/dev/null 2>&1
+    kubectl delete pvc $TEST_PVC -n default
 else
     fail "PVC failed to bind"
 fi
 
 # Test 3: Object store (if exists)
 echo "TEST: S3 object store"
-if kubectl get cephobjectstore -n rook-ceph aivstore >/dev/null 2>&1; then
-    if kubectl get svc -n rook-ceph rook-ceph-rgw-aivstore >/dev/null 2>&1; then
+if kubectl get cephobjectstore -n rook-ceph aivstore; then
+    if kubectl get svc -n rook-ceph rook-ceph-rgw-aivstore; then
         pass "S3 object store running"
     else
         fail "S3 service not found"

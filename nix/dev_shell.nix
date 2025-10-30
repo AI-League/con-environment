@@ -132,7 +132,7 @@ in
           memoryWorkers = 8192;
           disk = 12188;
           extra-disks = 2;
-          extra-disks-size = 6144;
+          extra-disks-size = 12188;
           provisioner = "qemu";
           registryMirrors = [
             "docker.io=http://10.5.0.1:5000"

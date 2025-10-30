@@ -1,3 +1,4 @@
+load('ext://helm_remote', 'helm_remote')
 allow_k8s_contexts('admin@talos-local')
 hostname = os.getenv("HOSTNAME", "localhost")
 default_registry(
@@ -23,8 +24,13 @@ docker_build(
     './workshops/inspect-basic/',
 )
 
-k8s_yaml('./workshops/inspect-basic/tilt-service.yaml')
-k8s_resource('inspect-basic',
+helm_remote('jupyterhub',
+    repo_name='jupyterhub',
+    repo_url='https://hub.jupyter.org/helm-chart/',
+    values='./workshops/inspect-basic/lab-service.yaml'
+)
+
+k8s_resource('hub',
     port_forwards='50051:8080',
     labels=['workshops'],
     resource_deps=['ai-proxy'],

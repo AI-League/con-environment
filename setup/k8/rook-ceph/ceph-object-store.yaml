@@ -7,11 +7,11 @@ spec:
   metadataPool:
     failureDomain: host
     replicated:
-      size: 3 
+      size: 3
   dataPool:
     failureDomain: host
     replicated:
-      size: 3 
+      size: 3
   gateway:
     port: 80
     instances: 1

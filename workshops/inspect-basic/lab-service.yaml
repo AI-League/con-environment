@@ -1,11 +1,10 @@
 
 # --- Ingress Configuration ---
-proxy:
-  ingress:
-    enabled: true
-    ingressClassName: "cilium" #
-    hosts:
-      - "inspect-basic.local"
+ingress:
+  enabled: true
+  ingressClassName: "cilium" #
+  hosts:
+    - "inspect-basic.local"
 
 # --- Workshop Container Configuration ---
 
@@ -15,9 +14,8 @@ singleuser:
     name: "workshop-inspect-basic"
     tag: "latest"
   defaultUrl: "/"
-  port: 8080
-  cmd: ["code-server"]
-  args:
+  cmd: 
+    - "code-server"
     - "--bind-addr=0.0.0.0:{port}"
     - "--auth=none"
     - "--base-path={base_url}"
