@@ -16,24 +16,25 @@ spec:
       - name: inspect-basic
         image: workshop-inspect-basic
         ports:
-        - containerPort: 50051
+          - containerPort: 50051
+        command: ["code-server", "--bind-addr", "0.0.0.0:8080", "--auth", "none", "/home/coder/workspace"]
         env:
-        - name: PYTHONUNBUFFERED
-          value: "1"
-        - name: GRPC_VERBOSITY
-          value: "INFO"
-        - name: OPENAI_API_KEY
-          value: "hidden"
-        - name: OPENAI_BASE_URL
-          value: "http://ai-proxy-svc/openai/"
-        - name: GOOGLE_API_KEY
-          value: "hidden"
-        - name: GOOGLE_BASE_URL
-          value: "http://ai-proxy-svc/gemini/"
-        - name: ANTHROPIC_API_KEY
-          value: "hidden"
-        - name: ANTHROPIC_BASE_URL
-          value: "http://ai-proxy-svc/anthropic/"
+          - name: PYTHONUNBUFFERED
+            value: "1"
+          - name: GRPC_VERBOSITY
+            value: "INFO"
+          - name: OPENAI_API_KEY
+            value: "hidden"
+          - name: OPENAI_BASE_URL
+            value: "http://ai-proxy-svc/openai/"
+          - name: GOOGLE_API_KEY
+            value: "hidden"
+          - name: GOOGLE_BASE_URL
+            value: "http://ai-proxy-svc/gemini/"
+          - name: ANTHROPIC_API_KEY
+            value: "hidden"
+          - name: ANTHROPIC_BASE_URL
+            value: "http://ai-proxy-svc/anthropic/"
 ---
 apiVersion: v1
 kind: Service

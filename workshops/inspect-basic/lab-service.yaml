@@ -1,36 +1,43 @@
-
-# --- Ingress Configuration ---
 ingress:
   enabled: true
   ingressClassName: "cilium"
   hosts:
     - "inspect-basic.local"
-
-
+rbac:
+  create: true
+hub:
+  readinessProbe:
+    initialDelaySeconds: 15
+  extraConfig: 
+    jupyterServerProxyConfig.py: |
+        import shlex
+        c.ServerProxy.servers = {
+          'vscode': {
+            'command': [
+              'code-server',
+              '--bind-addr=0.0.0.0:8888',
+              '--auth=none',
+              '--base-path={base_url_path}vscode/',
+              '/home/coder/workspace'
+            ],
+            'absolute_url': True,
+            'new_browser_tab': False,
+            'launcher_entry': {
+              'title': 'VS Code'
+            }
+          }
+        }
 singleuser:
   # 1. Point to your new image that contains code-server
   image:
-    name: "workshop-inspect-basic"
-    tag: "latest"
+    name: "ghcr.io/nbhdai/workshop-inspect-basic"
+    tag: "tilt-hub-workshop"
   defaultUrl: "/"
-  cmd: 
-    - "code-server"
-    - "--bind-addr=0.0.0.0:{port}"
-    - "--auth=none"
-    - "--base-path={base_url}"
-    - "/app" 
+  # I'm pretty sure this is blocked by cilium and this violates a security policy talos configures.
+  cloudMetadata:
+    blockWithIptables: false
+  cmd: ["jupyterhub-singleuser"]
   extraEnv:
-    S3_ENDPOINT_URL: "http://rook-ceph-rgw-aivstore.rook-ceph.svc.cluster.local" #
-    AWS_ACCESS_KEY_ID:
-      valueFrom:
-        secretKeyRef:
-          name: jhub-s3-creds
-          key: accessKey
-    AWS_SECRET_ACCESS_KEY:
-      valueFrom:
-        secretKeyRef:
-          name: jhub-s3-creds
-          key: secretKey
     PYTHONUNBUFFERED: "1"
     GRPC_VERBOSITY: "INFO"
     OPENAI_API_KEY: "hidden"
@@ -39,9 +46,9 @@ singleuser:
     GOOGLE_BASE_URL: "ai-proxy/gemini/"
     ANTHROPIC_API_KEY: "hidden"
     ANTHROPIC_BASE_URL: "ai-proxy/anthropic/"
+  storage:
+    capacity: 1Gi
     
-
-# --- Culling for Idle Pods (No Changes) ---
 cull:
   enabled: true
   timeout: 3600 # 1 hour

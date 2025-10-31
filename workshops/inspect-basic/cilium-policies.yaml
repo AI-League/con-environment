@@ -1,0 +1,48 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-access-to-api-server
+  namespace: default
+spec:
+  egress:
+  - toEntities:
+    - kube-apiserver
+  endpointSelector:
+    matchLabels:
+      app: jupyterhub
+      component: hub
+
+---
+
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-scheduler-to-api-server
+  namespace: default
+spec:
+  egress:
+  - toEntities:
+    - kube-apiserver
+  
+  # This is the only part that changes
+  endpointSelector:
+    matchLabels:
+      app: jupyterhub
+      component: user-scheduler
+
+---
+
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-hook-puller-to-api-server
+  namespace: default
+spec:
+  egress:
+  - toEntities:
+    - kube-apiserver
+  
+  endpointSelector:
+    matchLabels:
+      app: jupyterhub
+      component: hook-image-puller

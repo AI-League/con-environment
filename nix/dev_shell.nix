@@ -73,6 +73,7 @@ in
     imports = [
       inputs.services-flake.processComposeModules.default
       (multiService ./tilt.nix)
+      (multiService ./local_path_storage.nix)
       (multiService ./ceph.nix)
       (multiService ./talos.nix)
       (multiService ./cilium-patch.nix)
@@ -130,9 +131,9 @@ in
           workers = 3;
           cpusWorkers = "4.0";
           memoryWorkers = 12188;
-          disk = 8192;
-          extra-disks = 2;
-          extra-disks-size = 8192;
+          disk = 24376;
+          # extra-disks = 2;
+          # extra-disks-size = 8192;
           provisioner = "qemu";
           registryMirrors = [
             "docker.io=http://10.5.0.1:5000"
@@ -187,7 +188,7 @@ in
       cluster.condition = "process_log_ready";
     };
     settings.processes.tilt.depends_on = {
-      storage.condition = "process_log_ready";
+      storage.condition = "process_completed_successfully";
       cluster.condition = "process_log_ready";
     };
   };

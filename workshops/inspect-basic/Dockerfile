@@ -15,10 +15,10 @@ RUN chown -R coder:coder /home/coder/workspace
 # Switch to coder user
 USER coder
 
-
-
 RUN python3 -m venv /home/coder/venv
 ENV PATH="/home/coder/venv/bin:$PATH"
+
+RUN pip install jupyterhub jupyterlab jupyter-server-proxy
 
 RUN code-server --install-extension ms-python.python
 RUN code-server --install-extension ukaisi.inspect-ai
@@ -40,4 +40,4 @@ COPY requirements.txt /home/coder/
 RUN pip install -r /home/coder/requirements.txt
 
 EXPOSE 8080
-CMD ["code-server", "--bind-addr", "0.0.0.0:8080", "--auth", "none", "/home/coder/workspace"]
+CMD ["jupyterhub-singleuser"]
