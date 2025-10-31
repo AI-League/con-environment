@@ -12,6 +12,7 @@ let
     zsh
     k9s
     cilium-cli
+    hubble
   ];
 in
 {

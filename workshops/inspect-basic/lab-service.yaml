@@ -3,53 +3,73 @@ ingress:
   ingressClassName: "cilium"
   hosts:
     - "inspect-basic.local"
+
 rbac:
   create: true
+
 hub:
   readinessProbe:
     initialDelaySeconds: 15
-  extraConfig: 
-    jupyterServerProxyConfig.py: |
-        import shlex
-        c.ServerProxy.servers = {
+    periodSeconds: 10
+    timeoutSeconds: 5
+    
+  extraConfig:
+    vscode-proxy: |
+      # Configure jupyter-server-proxy to forward to code-server
+      import os
+      c.ServerProxy.servers = {
           'vscode': {
-            'command': [
-              'code-server',
-              '--bind-addr=0.0.0.0:8888',
-              '--auth=none',
-              '--base-path={base_url_path}vscode/',
-              '/home/coder/workspace'
-            ],
-            'absolute_url': True,
-            'new_browser_tab': False,
-            'launcher_entry': {
-              'title': 'VS Code'
-            }
+              'command': [
+                  'code-server',
+                  '--bind-addr', '0.0.0.0:8080',
+                  '--auth', 'none',
+                  '--disable-telemetry',
+                  '/home/coder/workspace'
+              ],
+              'port': 8080,
+              'timeout': 30,
+              'launcher_entry': {
+                  'title': 'VS Code'
+              }
           }
-        }
+      }
+      # Redirect to VS Code by default
+      # c.Spawner.default_url = '/vscode/'
+      
 singleuser:
-  # 1. Point to your new image that contains code-server
   image:
     name: "ghcr.io/nbhdai/workshop-inspect-basic"
-    tag: "tilt-hub-workshop"
-  defaultUrl: "/"
-  # I'm pretty sure this is blocked by cilium and this violates a security policy talos configures.
+    tag: "tilt-hub-workshop-4"
+    pullPolicy: "Always"
+  
+  # Key: Let JupyterHub handle the startup
+  cmd: ["jupyterhub-singleuser"]
+  
+  # Cilium is handling networking and this is blocked by default.
   cloudMetadata:
     blockWithIptables: false
-  cmd: ["jupyterhub-singleuser"]
+
   extraEnv:
     PYTHONUNBUFFERED: "1"
-    GRPC_VERBOSITY: "INFO"
     OPENAI_API_KEY: "hidden"
-    OPENAI_BASE_URL: "ai-proxy/openai/"
-    GOOGLE_API_KEY: "hidden"
-    GOOGLE_BASE_URL: "ai-proxy/gemini/"
+    OPENAI_BASE_URL: "http://ai-proxy-svc/openai/"
+    GOOGLE_API_KEY: "hidden"  
+    GOOGLE_BASE_URL: "http://ai-proxy-svc/gemini/"
     ANTHROPIC_API_KEY: "hidden"
-    ANTHROPIC_BASE_URL: "ai-proxy/anthropic/"
+    ANTHROPIC_BASE_URL: "http://ai-proxy-svc/anthropic/"
+    JUPYTER_ENABLE_LAB: "no"  # We don't need JupyterLab
+    
   storage:
     capacity: 1Gi
     
+  cpu:
+    limit: 2
+    guarantee: 0.5
+  memory:
+    limit: 2G
+    guarantee: 512M
+
 cull:
   enabled: true
-  timeout: 3600 # 1 hour
+  timeout: 3600
   every: 300

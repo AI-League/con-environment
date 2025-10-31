@@ -1,43 +1,46 @@
-FROM codercom/code-server:latest
+FROM jupyter/base-notebook:latest
 
-# Install Python and pip
+# Switch to root for system packages
 USER root
+
+# Install code-server
+
+# Install additional Python packages
 RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
-    python3-venv \
-    python3-full \
+    curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
+RUN curl -fsSL https://code-server.dev/install.sh | sh
+
+# Switch back to jovyan user (JupyterHub default)
+USER ${NB_USER}
+
+# Install JupyterHub and proxy extensions
+RUN pip install --no-cache-dir \
+    jupyterhub==5.4.1 \
+    jupyter-server-proxy \
+    jupyter-vscode-proxy \
+    inspect-ai \
+    openai \
+    anthropic \
+    google-generativeai
+
+# Install VS Code extensions
+RUN code-server --install-extension ms-python.python && \
+    code-server --install-extension ukaisi.inspect-ai
+
 # Create workspace directory
-RUN mkdir -p /home/coder/workspace
-RUN chown -R coder:coder /home/coder/workspace
-# Switch to coder user
-USER coder
+RUN mkdir -p /home/${NB_USER}/workspace
 
-RUN python3 -m venv /home/coder/venv
-ENV PATH="/home/coder/venv/bin:$PATH"
+# Copy workspace files
+COPY --chown=${NB_UID}:${NB_GID} ./workspace /home/${NB_USER}/workspace
 
-RUN pip install jupyterhub jupyterlab jupyter-server-proxy
+# Copy requirements if you have additional ones
+COPY --chown=${NB_UID}:${NB_GID} requirements.txt /tmp/
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
-RUN code-server --install-extension ms-python.python
-RUN code-server --install-extension ukaisi.inspect-ai
+WORKDIR /home/${NB_USER}
 
-# Copy your workspace files
-COPY --chown=coder:coder ./workspace /home/coder/workspace
-
-# Configure code-server settings
-RUN mkdir -p /home/coder/.local/share/code-server/User
-RUN echo '{\n\
-  "workbench.startupEditor": "none",\n\
-  "window.menuBarVisibility": "toggle",\n\
-  "python.defaultInterpreterPath": "/home/coder/venv/bin/python"\n\
-}' > /home/coder/.local/share/code-server/User/settings.json
-
-WORKDIR /home/coder/workspace
-
-COPY requirements.txt /home/coder/
-RUN pip install -r /home/coder/requirements.txt
-
-EXPOSE 8080
-CMD ["jupyterhub-singleuser"]
+# The default command will be overridden by JupyterHub
+CMD ["start-notebook.sh"]

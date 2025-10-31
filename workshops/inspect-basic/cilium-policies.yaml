@@ -1,7 +1,9 @@
+---
+# Allow hub to access Kubernetes API
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: allow-access-to-api-server
+  name: allow-hub-to-api-server
   namespace: default
 spec:
   egress:
@@ -13,7 +15,7 @@ spec:
       component: hub
 
 ---
-
+# Allow user-scheduler to access Kubernetes API
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -23,15 +25,13 @@ spec:
   egress:
   - toEntities:
     - kube-apiserver
-  
-  # This is the only part that changes
   endpointSelector:
     matchLabels:
       app: jupyterhub
       component: user-scheduler
 
 ---
-
+# Allow hook-puller to access Kubernetes API
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -41,8 +41,101 @@ spec:
   egress:
   - toEntities:
     - kube-apiserver
-  
   endpointSelector:
     matchLabels:
       app: jupyterhub
       component: hook-image-puller
+
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-singleuser-to-hub
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: jupyterhub
+      component: singleuser-server
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: jupyterhub
+        component: hub
+    toPorts:
+    - ports:
+      - port: "8081"
+        protocol: TCP
+
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-hub-to-singleuser
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: jupyterhub
+      component: hub
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: jupyterhub
+        component: singleuser-server
+    toPorts:
+    - ports:
+      - port: "8888"
+        protocol: TCP
+
+---
+# Allow user pods to connect to the AI proxy
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-singleuser-to-ai-proxy
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: jupyterhub
+      component: singleuser-server
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: ai-proxy
+    toPorts:
+    - ports:
+      - port: "80"
+        protocol: TCP
+
+# ---
+# # Allow user pods to access external HTTPS (for package downloads)
+# apiVersion: cilium.io/v2
+# kind: CiliumNetworkPolicy
+# metadata:
+#   name: allow-singleuser-external
+#   namespace: default
+# spec:
+#   endpointSelector:
+#     matchLabels:
+#       app: jupyterhub
+#       component: singleuser-server
+#   egress:
+#   - toFQDNs:
+#     - matchPattern: "*.pypi.org"
+#     - matchPattern: "*.pythonhosted.org"
+#     - matchPattern: "*.github.com"
+#     - matchPattern: "*.githubusercontent.com"
+#     toPorts:
+#     - ports:
+#       - port: "443"
+#         protocol: TCP
+#   - toCIDR:
+#     - 0.0.0.0/0
+#     toPorts:
+#     - ports:
+#       - port: "443"
+#         protocol: TCP
+#       - port: "80"
+#         protocol: TCP
