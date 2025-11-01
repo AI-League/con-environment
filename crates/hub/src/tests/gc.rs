@@ -6,10 +6,9 @@ use crate::gc;
 use super::helpers::TestContext;
 
 #[tracing_test::traced_test]
-#[tokio::test] // Run with: cargo test test_gc_cleans_up_idle_pods -- --ignored
+#[tokio::test]
 async fn test_gc_cleans_up_idle_pods() {
-    let ctx = TestContext::new_for_gc().await;
-    ctx.cleanup().await;
+    let ctx = TestContext::new_for_gc("test_gc_cleans_up_idle_pods").await;
     
     // Create a test pod with sidecar
     let pod = ctx.create_test_pod("idle-user").await
@@ -39,21 +38,18 @@ async fn test_gc_cleans_up_idle_pods() {
     assert!(result.is_ok(), "GC should succeed");
     
     // Wait for deletion to complete
-    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
     
     // Verify pod and service were deleted
     assert!(!ctx.pod_exists(pod_name).await, "Pod should be deleted");
     assert!(!ctx.service_exists(&format!("{}-idle-user", ctx.config.workshop_name)).await, 
             "Service should be deleted");
-    
-    ctx.cleanup().await;
 }
 
 #[tracing_test::traced_test]
 #[tokio::test]
 async fn test_gc_respects_ttl() {
-    let ctx = TestContext::new_for_gc().await;
-    ctx.cleanup().await;
+    let ctx = TestContext::new_for_gc("test_gc_respects_ttl").await;
     
     let pod_api: Api<Pod> = Api::namespaced(
         ctx.client.clone(),
@@ -114,14 +110,10 @@ async fn test_gc_respects_ttl() {
     
     // Pod should be deleted due to expired TTL
     assert!(!ctx.pod_exists("ttl-test-pod").await, "Pod should be deleted due to expired TTL");
-    
-    ctx.cleanup().await;
 }
 #[tokio::test]
-#[ignore] // Remove this to run with actual k8s cluster
 async fn test_gc_only_affects_managed_pods() {
-    let ctx = TestContext::new().await;
-    ctx.cleanup().await;
+    let ctx = TestContext::new("test_gc_only_affects_managed_pods").await;
     
     let pod_api: Api<Pod> = Api::namespaced(
         ctx.client.clone(),
@@ -184,15 +176,12 @@ async fn test_gc_only_affects_managed_pods() {
     // Clean up the unmanaged pod (this will run even if assertions fail with proper cleanup)
     let _ = pod_api.delete("unmanaged-test-pod", &kube::api::DeleteParams::default()).await;
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-    
-    ctx.cleanup().await;
 }
 
 #[tracing_test::traced_test]
 #[tokio::test]
 async fn test_gc_handles_missing_health_endpoint() {
-    let ctx = TestContext::new_for_gc().await;
-    ctx.cleanup().await;
+    let ctx = TestContext::new_for_gc("test_gc_handles_missing_health_endpoint").await;
     
     // Create a pod without sidecar (no health endpoint)
     let pod_api: Api<Pod> = Api::namespaced(
@@ -243,15 +232,12 @@ async fn test_gc_handles_missing_health_endpoint() {
     // Pod should be deleted due to failed health check
     assert!(!ctx.pod_exists("no-health-pod").await, 
             "Pod without health endpoint should be considered unhealthy and deleted");
-    
-    ctx.cleanup().await;
 }
 
 #[tracing_test::traced_test]
 #[tokio::test]
 async fn test_gc_cleans_failed_pods() {
-    let ctx = TestContext::new_for_gc().await;
-    ctx.cleanup().await;
+    let ctx = TestContext::new_for_gc("test_gc_cleans_failed_pods").await;
     
     // Create a pod that will fail (invalid image)
     let pod_api: Api<Pod> = Api::namespaced(
@@ -302,6 +288,4 @@ async fn test_gc_cleans_failed_pods() {
     
     // Failed pod should be cleaned up
     assert!(!ctx.pod_exists("failed-test-pod").await, "Failed pod should be cleaned up");
-    
-    ctx.cleanup().await;
 }

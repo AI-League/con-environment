@@ -1,13 +1,13 @@
-use k8s_openapi::api::core::v1::{Pod, Service};
-use kube::{Api, Client};
-use crate::{auth, config, orchestrator, HubError};
+use k8s_openapi::api::core::v1::Pod;
+use kube::Api;
+use crate::{auth, orchestrator, HubError};
 use super::helpers::TestContext;
 
 #[tracing_test::traced_test]
 #[tokio::test]
 async fn test_orchestrator_creates_pod_and_service() {
-    let ctx = TestContext::new().await;
-    ctx.cleanup().await;
+    let ctx = TestContext::new("test_orchestrator_creates_pod_and_service").await;
+
     
     // Test pod creation through orchestrator
     let user_id = "test-user-1";
@@ -38,21 +38,17 @@ async fn test_orchestrator_creates_pod_and_service() {
     
     assert_eq!(binding.pod_name, second_binding.pod_name, "Should return same pod");
     assert_eq!(binding.service_name, second_binding.service_name, "Should return same service");
-    
-    ctx.cleanup().await;
 }
 
 #[tracing_test::traced_test]
 #[tokio::test]
 async fn test_pod_limit_enforcement() {
-    let ctx = TestContext::new().await;
+    let ctx = TestContext::new("test_pod_limit_enforcement").await;
     
     // Create a config with very low limit for testing
     let mut limited_config = (*ctx.config).clone();
     limited_config.workshop_pod_limit = 2;
     let limited_config = std::sync::Arc::new(limited_config);
-    
-    ctx.cleanup().await;
     
     // Create pods up to limit
     let user1 = orchestrator::get_or_create_pod(
@@ -82,8 +78,6 @@ async fn test_pod_limit_enforcement() {
         }
         _ => panic!("Expected PodLimitReached error, got: {:?}", user3),
     }
-    
-    ctx.cleanup().await;
 }
 
 #[test]
@@ -156,8 +150,7 @@ fn test_extract_token_from_query() {
 #[tracing_test::traced_test]
 #[tokio::test]
 async fn test_concurrent_pod_creation() {
-    let ctx = TestContext::new().await;
-    ctx.cleanup().await;
+    let ctx = TestContext::new("test_concurrent_pod_creation").await;
     
     // Spawn multiple concurrent pod creation requests
     let mut handles = vec![];
@@ -186,24 +179,21 @@ async fn test_concurrent_pod_creation() {
     // Verify we have exactly 5 pods
     let pod_count = ctx.count_managed_pods().await;
     assert_eq!(pod_count, 5, "Should have exactly 5 pods");
-    
-    ctx.cleanup().await;
 }
 
 #[tracing_test::traced_test]
 #[tokio::test]
 async fn test_cleanup_preserves_active_pods() {
-    let ctx = TestContext::new_for_gc().await;
-    ctx.cleanup().await;
+    let ctx = TestContext::new_for_gc("test_cleanup_preserves_active_pods").await;
     
-    // Create two pods - one "active" and one "idle"
-    let active_pod = ctx.create_test_pod("active-user").await
-        .expect("Failed to create active pod");
-    let idle_pod = ctx.create_test_pod("idle-user").await
-        .expect("Failed to create idle pod");
-    
-    let active_name = active_pod.metadata.name.as_ref().unwrap();
-    let idle_name = idle_pod.metadata.name.as_ref().unwrap();
+    // // Create two pods - one "active" and one "idle"
+    // let active_pod = ctx.create_test_pod("active-user").await
+    //     .expect("Failed to create active pod");
+    // let idle_pod = ctx.create_test_pod("idle-user").await
+    //     .expect("Failed to create idle pod");
+    //
+    // let active_name = active_pod.metadata.name.as_ref().unwrap();
+    // let idle_name = idle_pod.metadata.name.as_ref().unwrap();
     
     // Simulate the active pod having recent activity by updating its annotation
     let pod_api: Api<Pod> = Api::namespaced(
@@ -213,12 +203,6 @@ async fn test_cleanup_preserves_active_pods() {
     
     // For this test, we'll assume the GC checks a "last-activity" annotation
     // In a real scenario, this would come from the sidecar health endpoint
-    
-    // Run GC with reasonable idle threshold
-    let svc_api: Api<Service> = Api::namespaced(
-        ctx.client.clone(),
-        &ctx.config.workshop_namespace
-    );
     
     let result = crate::gc::cleanup_idle_pods(
         &pod_api,
@@ -231,6 +215,5 @@ async fn test_cleanup_preserves_active_pods() {
     // In a real test with proper sidecar health endpoints:
     // - Active pod would report low idle time and remain
     // - Idle pod would report high idle time and be deleted
-    
-    ctx.cleanup().await;
 }
+

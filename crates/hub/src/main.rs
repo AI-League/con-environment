@@ -20,6 +20,8 @@ mod proxy;
 
 pub use error::HubError;
 
+pub static SIDECAR: &'static str = "ghcr.io/nbhdai/workshop-sidecar:latest";
+
 /// Global application state shared across all handlers.
 #[derive(Clone)]
 pub struct AppState {

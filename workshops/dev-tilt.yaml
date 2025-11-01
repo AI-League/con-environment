@@ -1,11 +1,21 @@
-# --- 1. Namespace for Workshop Pods ---
+# dev-tilt.yaml - Workshop Hub Development Deployment
+# This sets up the hub, workshop namespace, and necessary network policies
+
+# =============================================================================
+# 1. Workshop Namespace
+# =============================================================================
 apiVersion: v1
 kind: Namespace
 metadata:
   name: workshops
+  labels:
+    name: workshops
+    app.kubernetes.io/managed-by: tilt
 
 ---
-# --- 2. ServiceAccount for the Hub (in default namespace) ---
+# =============================================================================
+# 2. ServiceAccount for Hub (in default namespace)
+# =============================================================================
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -13,22 +23,23 @@ metadata:
   namespace: default
 
 ---
-# --- 3. Role for the Hub (in workshops namespace) ---
-# This gives the Hub permission to manage pods, services, and secrets
-# ONLY in the 'workshops' namespace.
+# =============================================================================
+# 3. Role for Hub (in workshops namespace)
+# =============================================================================
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: workshop-manager-role
   namespace: workshops
 rules:
-- apiGroups: [""] # Core API group
-  resources: ["pods", "services", "secrets"]
-  verbs: ["create", "get", "list", "watch", "delete", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["pods", "services", "secrets"]
+    verbs: ["create", "get", "list", "watch", "delete", "patch", "update"]
 
 ---
-# --- 4. RoleBinding for the Hub (in workshops namespace) ---
-# This binds the ServiceAccount (from 'default') to the Role (in 'workshops').
+# =============================================================================
+# 4. RoleBinding for Hub (in workshops namespace)
+# =============================================================================
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -39,12 +50,129 @@ roleRef:
   kind: Role
   name: workshop-manager-role
 subjects:
-- kind: ServiceAccount
-  name: workshop-hub-sa
-  namespace: default # <-- ServiceAccount is in 'default'
+  - kind: ServiceAccount
+    name: workshop-hub-sa
+    namespace: default
 
 ---
-# --- 5. Deployment for the Workshop Hub (in default namespace) ---
+# =============================================================================
+# 5. Cilium Network Policy - Allow Hub to Workshop Namespace
+# =============================================================================
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-hub-to-workshops
+  namespace: workshops
+spec:
+  endpointSelector: {}
+  ingress:
+    # Allow traffic from hub namespace (default)
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: default
+            app: workshop-hub
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+            - port: "8080"
+              protocol: TCP
+            - port: "8888"
+              protocol: TCP
+    
+    # Allow traffic from within workshops namespace (pod-to-pod)
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: workshops
+
+---
+# =============================================================================
+# 6. Cilium Network Policy - Allow Workshops to External
+# =============================================================================
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-workshops-egress
+  namespace: workshops
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/managed-by: workshop-hub
+  egress:
+    # Allow DNS
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+    
+    # Allow internet access
+    - toEntities:
+        - world
+    
+    # Allow pod-to-pod in same namespace
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: workshops
+
+---
+# =============================================================================
+# 7. Cilium Network Policy - Allow Integration Tests
+# =============================================================================
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-integration-tests
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: workshop-integration-tests
+  egress:
+    # Allow tests to reach hub
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: default
+            app: workshop-hub
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    
+    # Allow tests to reach workshops
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: workshops
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+            - port: "8080"
+              protocol: TCP
+            - port: "8888"
+              protocol: TCP
+    
+    # Allow DNS
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+    
+    # Allow Kubernetes API access
+    - toEntities:
+        - kube-apiserver
+
+---
+# =============================================================================
+# 8. Hub Deployment
+# =============================================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -65,40 +193,41 @@ spec:
       serviceAccountName: workshop-hub-sa
       containers:
         - name: workshop-hub
-          # This image name should match your docker_build() in Tiltfile
           image: workshop-hub:dev
-          imagePullPolicy: IfNotPresent # Important for local Tilt builds
+          imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 8080
               protocol: TCP
-          resources: # Minimal resources for dev
+          resources:
             requests:
               cpu: "100m"
               memory: "128Mi"
             limits:
-              cpu: "200m"
-              memory: "256Mi"
+              cpu: "500m"
+              memory: "512Mi"
           env:
-            # --- Auth Config ---
+            # Auth Config
             - name: HUB_AUTH_SIGNING_KEY
               value: "dev-secret-key-for-tilt-must-be-long-enough"
+            
+            # Logging
             - name: RUST_LOG
               value: "info,workshop_hub=debug"
             
-            # --- Workshop Config ---
+            # Workshop Config
             - name: HUB_WORKSHOP_NAME
               value: "tilt-workshop"
             - name: HUB_WORKSHOP_NAMESPACE
               value: "workshops"
             - name: HUB_WORKSHOP_TTL_SECONDS
-              value: "3600" # 1 hour
+              value: "3600"
             - name: HUB_WORKSHOP_IDLE_SECONDS
-              value: "600" # 10 minutes
+              value: "600"
             - name: HUB_WORKSHOP_POD_LIMIT
-              value: "10" # Low limit for dev
+              value: "10"
             
-            # --- User Container Config (Hello World) ---
+            # User Container Config
             - name: HUB_WORKSHOP_IMAGE
               value: "nginxdemos/hello:latest"
             - name: HUB_WORKSHOP_PORT
@@ -112,19 +241,21 @@ spec:
             - name: HUB_WORKSHOP_MEM_LIMIT
               value: "128Mi"
             
-            # --- Sidecar Container Config ---
-            # (Assuming your Rust code reads these)
+            # Sidecar Config
             - name: HUB_WORKSHOP_SIDECAR_IMAGE
-              # This image name should match your 2nd docker_build() in Tiltfile
               value: "workshop-sidecar:dev"
 
 ---
-# --- 6. Service for the Workshop Hub (in default namespace) ---
+# =============================================================================
+# 9. Hub Service
+# =============================================================================
 apiVersion: v1
 kind: Service
 metadata:
   name: workshop-hub-svc
   namespace: default
+  labels:
+    app: workshop-hub
 spec:
   type: ClusterIP
   ports:
@@ -134,3 +265,16 @@ spec:
       name: http
   selector:
     app: workshop-hub
+
+---
+# =============================================================================
+# 10. Secret for Integration Tests (JWT Secret)
+# =============================================================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: workshop-hub-auth
+  namespace: default
+type: Opaque
+stringData:
+  jwt-secret: "dev-secret-key-for-tilt-must-be-long-enough"

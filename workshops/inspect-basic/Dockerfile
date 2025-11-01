@@ -1,44 +1,37 @@
-FROM quay.io/jupyter/base-notebook:hub-5.4.1
+FROM codercom/code-server:latest
 
-# Switch to root for system packages
+# Install Python and pip
 USER root
-
-# Install additional Python packages
 RUN apt-get update && apt-get install -y \
-    curl \
-    git \
+    python3 \
+    python3-pip \
+    python3-venv \
+    python3-full \
     && rm -rf /var/lib/apt/lists/*
 
-# Install code-server
-RUN curl -fsSL https://code-server.dev/install.sh | sh
+# Create workspace directory
+RUN mkdir -p /home/coder/workspace
+RUN chown -R coder:coder /home/coder/workspace
 
-# Switch back to jovyan user (JupyterHub default)
-USER ${NB_USER}
+# Switch to coder user
+USER coder
 
-# Install JupyterHub and proxy extensions
-RUN pip install --no-cache-dir \
-    jupyter-server-proxy \
-    inspect-ai \
-    openai \
-    anthropic \
-    google-generativeai
-RUN jupyter serverextension enable --sys-prefix jupyter_server_proxy
+# Create venv and install ONLY the minimal JupyterHub requirements
+RUN python3 -m venv /home/coder/venv
+ENV PATH="/home/coder/venv/bin:$PATH"
 
 # Install VS Code extensions
-RUN code-server --install-extension ms-python.python && \
-    code-server --install-extension ukaisi.inspect-ai
+RUN code-server --install-extension ms-python.python
+RUN code-server --install-extension ukaisi.inspect-ai
 
-# Create workspace directory
-RUN mkdir -p /home/${NB_USER}/workspace
+# Copy your workspace files
+COPY --chown=coder:coder ./workspace /home/coder/workspace
 
-# Copy workspace files
-COPY --chown=${NB_UID}:${NB_GID} ./workspace /home/${NB_USER}/workspace
+# Copy and install your specific requirements
+COPY --chown=coder:coder requirements.txt /home/coder/
+RUN pip install --no-cache-dir -r /home/coder/requirements.txt
 
-# Copy requirements if you have additional ones
-COPY --chown=${NB_UID}:${NB_GID} requirements.txt /tmp/
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+WORKDIR /home/coder/workspace
 
-WORKDIR /home/${NB_USER}
-
-# The default command will be overridden by JupyterHub
-CMD ["start-notebook.sh"]
+# This is the key - run jupyterhub-singleuser which handles the auth and API
+CMD ["code-server","--bind-addr", "0.0.0.0:8888","--auth", "none","--disable-telemetry","/home/coder/workspace"]

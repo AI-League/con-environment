@@ -1,0 +1,168 @@
+# integration-tests-job.yaml
+# Kubernetes Job that runs integration tests against deployed system
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: workshop-integration-tests
+  namespace: workshop-hub-system
+  labels:
+    app: workshop-integration-tests
+    test-run: "true"
+spec:
+  # Auto-cleanup after 5 minutes
+  ttlSecondsAfterFinished: 300
+  
+  # Number of retries if job fails
+  backoffLimit: 2
+  
+  template:
+    metadata:
+      labels:
+        app: workshop-integration-tests
+    spec:
+      # Use hub service account for Kubernetes API access
+      serviceAccountName: workshop-hub-controller
+      
+      # Don't restart on failure
+      restartPolicy: Never
+      
+      containers:
+        - name: integration-tests
+          image: workshop-integration-tests:latest
+          imagePullPolicy: IfNotPresent
+          
+          env:
+            # Hub configuration
+            - name: HUB_NAMESPACE
+              value: "workshop-hub-system"
+            
+            - name: WORKSHOP_NAMESPACE
+              value: "test-workshops"
+            
+            - name: HUB_SERVICE_NAME
+              value: "workshop-hub"
+            
+            - name: HUB_PORT
+              value: "8080"
+            
+            - name: WORKSHOP_NAME
+              value: "test-workshop"
+            
+            # JWT secret for auth tests
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: workshop-hub-auth
+                  key: jwt-secret
+            
+            # Logging configuration
+            - name: RUST_LOG
+              value: "info,workshop_integration_tests=debug"
+          
+          # Resource limits
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          
+          # Security context
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+
+---
+# Optional: ConfigMap for test configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workshop-integration-tests-config
+  namespace: workshop-hub-system
+data:
+  # Test timeouts
+  pod-ready-timeout: "120"
+  test-timeout: "300"
+  
+  # Test behavior
+  cleanup-on-success: "true"
+  cleanup-on-failure: "false"
+  
+  # Stress test configuration
+  concurrent-users: "5"
+  
+---
+# Optional: ServiceAccount with minimal permissions
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: integration-tests
+  namespace: workshop-hub-system
+
+---
+# Optional: Role for test-specific permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: integration-tests
+  namespace: workshop-hub-system
+rules:
+  # Read hub pods and services
+  - apiGroups: [""]
+    resources: ["pods", "services"]
+    verbs: ["get", "list", "watch"]
+  
+  # Read workshop namespace pods
+  - apiGroups: [""]
+    resources: ["pods", "services"]
+    verbs: ["get", "list", "watch"]
+    resourceNames: []
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: integration-tests
+  namespace: workshop-hub-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: integration-tests
+subjects:
+  - kind: ServiceAccount
+    name: integration-tests
+    namespace: workshop-hub-system
+
+---
+# Optional: Role in workshop namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: integration-tests-workshop
+  namespace: test-workshops
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services"]
+    verbs: ["get", "list", "watch", "delete"]
+    # For cleanup of test resources
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: integration-tests-workshop
+  namespace: test-workshops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: integration-tests-workshop
+subjects:
+  - kind: ServiceAccount
+    name: integration-tests
+    namespace: workshop-hub-system

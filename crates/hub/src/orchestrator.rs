@@ -186,7 +186,7 @@ fn create_workshop_pod_spec(
                 // This uses the sidecar you built
                 {
                     "name": "sidecar",
-                    "image": "ghcr.io/nbhdai/workshop-sidecar:latest", 
+                    "image": crate::SIDECAR, 
                     "imagePullPolicy": "IfNotPresent",
                     "env": [
                         // axum health server
