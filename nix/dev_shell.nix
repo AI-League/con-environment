@@ -1,6 +1,12 @@
 { inputs, pkgs, system, hostSystemName, ... }:
 let 
   inherit (inputs.services-flake.lib) multiService;
+  inherit (inputs) fenix;
+
+  rustToolchain = with fenix.packages.${system}; combine [ 
+    stable.toolchain
+    targets.wasm32-unknown-unknown.stable.rust-std
+  ];
 
   cliTools = with pkgs; [
     curl
@@ -13,7 +19,7 @@ let
     k9s
     cilium-cli
     hubble
-  ];
+  ] ++ [ rustToolchain ];
 in
 {
   shell = 

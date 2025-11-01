@@ -1,8 +1,6 @@
 ingress:
   enabled: true
   ingressClassName: "cilium"
-  hosts:
-    - "inspect-basic.local"
 
 rbac:
   create: true
@@ -14,6 +12,16 @@ hub:
     timeoutSeconds: 5
     
   extraConfig:
+    # codeServerConfig.py: |
+    #     # Tell the Spawner that this is not a Jupyter server
+    #     c.KubeSpawner.api_endpoint = ''
+        
+    #     # Tell the Spawner to use port 8080 (where code-server is)
+    #     # instead of the default 8888 (where jupyter is).
+    #     c.KubeSpawner.port = 8080
+
+    #     # Your custom setting to open VSCode in a specific folder.
+    #     c.KubeSpawner.default_url = '/?folder=/home/coder/workspace'
     vscode-proxy: |
       # Configure jupyter-server-proxy to forward to code-server
       import os
@@ -33,15 +41,13 @@ hub:
               }
           }
       }
-      # Redirect to VS Code by default
-      # c.Spawner.default_url = '/vscode/'
       
 singleuser:
   image:
     name: "ghcr.io/nbhdai/workshop-inspect-basic"
-    tag: "tilt-hub-workshop-4"
+    tag: "latest"
     pullPolicy: "Always"
-  
+
   # Key: Let JupyterHub handle the startup
   cmd: ["jupyterhub-singleuser"]
   

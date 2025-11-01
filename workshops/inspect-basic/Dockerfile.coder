@@ -39,4 +39,4 @@ RUN pip install --no-cache-dir -r /home/coder/requirements.txt
 WORKDIR /home/coder/workspace
 
 # This is the key - run jupyterhub-singleuser which handles the auth and API
-CMD ["jupyterhub-singleuser"]
+CMD ['code-server','--bind-addr', '0.0.0.0:8080','--auth', 'none','--disable-telemetry','/home/coder/workspace']

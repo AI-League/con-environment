@@ -1,0 +1,16 @@
+[workspace]
+members = [ 
+    "crates/sidecar",
+    "crates/hub",
+]
+default-members = [
+     "crates/sidecar",
+    "crates/hub",
+]
+resolver = "2"
+
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Sven Cattell"]
+edition = "2021"

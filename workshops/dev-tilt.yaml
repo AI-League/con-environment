@@ -1,0 +1,136 @@
+# --- 1. Namespace for Workshop Pods ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workshops
+
+---
+# --- 2. ServiceAccount for the Hub (in default namespace) ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: workshop-hub-sa
+  namespace: default
+
+---
+# --- 3. Role for the Hub (in workshops namespace) ---
+# This gives the Hub permission to manage pods, services, and secrets
+# ONLY in the 'workshops' namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: workshop-manager-role
+  namespace: workshops
+rules:
+- apiGroups: [""] # Core API group
+  resources: ["pods", "services", "secrets"]
+  verbs: ["create", "get", "list", "watch", "delete", "patch", "update"]
+
+---
+# --- 4. RoleBinding for the Hub (in workshops namespace) ---
+# This binds the ServiceAccount (from 'default') to the Role (in 'workshops').
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: workshop-manager-binding
+  namespace: workshops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: workshop-manager-role
+subjects:
+- kind: ServiceAccount
+  name: workshop-hub-sa
+  namespace: default # <-- ServiceAccount is in 'default'
+
+---
+# --- 5. Deployment for the Workshop Hub (in default namespace) ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workshop-hub
+  namespace: default
+  labels:
+    app: workshop-hub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: workshop-hub
+  template:
+    metadata:
+      labels:
+        app: workshop-hub
+    spec:
+      serviceAccountName: workshop-hub-sa
+      containers:
+        - name: workshop-hub
+          # This image name should match your docker_build() in Tiltfile
+          image: workshop-hub:dev
+          imagePullPolicy: IfNotPresent # Important for local Tilt builds
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources: # Minimal resources for dev
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+          env:
+            # --- Auth Config ---
+            - name: HUB_AUTH_SIGNING_KEY
+              value: "dev-secret-key-for-tilt-must-be-long-enough"
+            - name: RUST_LOG
+              value: "info,workshop_hub=debug"
+            
+            # --- Workshop Config ---
+            - name: HUB_WORKSHOP_NAME
+              value: "tilt-workshop"
+            - name: HUB_WORKSHOP_NAMESPACE
+              value: "workshops"
+            - name: HUB_WORKSHOP_TTL_SECONDS
+              value: "3600" # 1 hour
+            - name: HUB_WORKSHOP_IDLE_SECONDS
+              value: "600" # 10 minutes
+            - name: HUB_WORKSHOP_POD_LIMIT
+              value: "10" # Low limit for dev
+            
+            # --- User Container Config (Hello World) ---
+            - name: HUB_WORKSHOP_IMAGE
+              value: "nginxdemos/hello:latest"
+            - name: HUB_WORKSHOP_PORT
+              value: "80"
+            - name: HUB_WORKSHOP_CPU_REQUEST
+              value: "50m"
+            - name: HUB_WORKSHOP_CPU_LIMIT
+              value: "200m"
+            - name: HUB_WORKSHOP_MEM_REQUEST
+              value: "64Mi"
+            - name: HUB_WORKSHOP_MEM_LIMIT
+              value: "128Mi"
+            
+            # --- Sidecar Container Config ---
+            # (Assuming your Rust code reads these)
+            - name: HUB_WORKSHOP_SIDECAR_IMAGE
+              # This image name should match your 2nd docker_build() in Tiltfile
+              value: "workshop-sidecar:dev"
+
+---
+# --- 6. Service for the Workshop Hub (in default namespace) ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workshop-hub-svc
+  namespace: default
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: workshop-hub

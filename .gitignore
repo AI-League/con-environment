@@ -7,3 +7,5 @@ result-*
 .data
 .envhost
 .env
+target
+.envrc

@@ -1,9 +1,7 @@
-FROM jupyter/base-notebook:latest
+FROM quay.io/jupyter/base-notebook:hub-5.4.1
 
 # Switch to root for system packages
 USER root
-
-# Install code-server
 
 # Install additional Python packages
 RUN apt-get update && apt-get install -y \
@@ -11,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+# Install code-server
 RUN curl -fsSL https://code-server.dev/install.sh | sh
 
 # Switch back to jovyan user (JupyterHub default)
@@ -18,13 +17,12 @@ USER ${NB_USER}
 
 # Install JupyterHub and proxy extensions
 RUN pip install --no-cache-dir \
-    jupyterhub==5.4.1 \
     jupyter-server-proxy \
-    jupyter-vscode-proxy \
     inspect-ai \
     openai \
     anthropic \
     google-generativeai
+RUN jupyter serverextension enable --sys-prefix jupyter_server_proxy
 
 # Install VS Code extensions
 RUN code-server --install-extension ms-python.python && \

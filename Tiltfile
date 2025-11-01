@@ -32,11 +32,22 @@ k8s_resource('hub',
     resource_deps=['ai-proxy'],
 )
 
+k8s_resource('proxy',
+    # We forward a local port (e.g., 8080) to the proxy's service port (80).
+    # This service then routes traffic to the proxy pod (on 8000)
+    # and the hub pod (on 8081) as needed.
+    port_forwards='8008:8000',
+    labels=['workshops'],
+    resource_deps=['ai-proxy'],
+)
+
 # Developing it quickly
 docker_build(
     'workshop-inspect-basic',
     './workshops/inspect-basic/',
+    dockerfile='./workshops/inspect-basic/Dockerfile.coder'
 )
+
 k8s_yaml('./workshops/inspect-basic/tilt-service.yaml')
 k8s_resource('inspect-basic',
     port_forwards='50505:8080',
