@@ -151,3 +151,11 @@ fn get_user_id_from_claims(claims: &auth::Claims) -> String {
         .collect::<String>()
         .to_lowercase()
 }
+
+#[cfg(test)]
+mod tests {
+    pub mod gc;
+    pub mod helpers;
+    pub mod config;
+    pub mod integration;
+}

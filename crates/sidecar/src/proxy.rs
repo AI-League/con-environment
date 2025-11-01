@@ -233,7 +233,8 @@ mod tests {
             }
         }
     }
-
+    
+    #[tracing_test::traced_test]
     #[tokio::test]
     async fn test_basic_proxy_echo() {
         // Setup mock upstream
@@ -280,6 +281,7 @@ mod tests {
         assert_eq!(&buf, test_data, "Echoed data should match sent data");
     }
 
+    #[tracing_test::traced_test]
     #[tokio::test]
     async fn test_activity_tracking() {
         // Setup mock upstream
@@ -333,6 +335,7 @@ mod tests {
         );
     }
 
+    #[tracing_test::traced_test]
     #[tokio::test]
     async fn test_bidirectional_data_flow() {
         // Setup mock upstream
@@ -377,6 +380,7 @@ mod tests {
         }
     }
 
+    #[tracing_test::traced_test]
     #[tokio::test]
     async fn test_upstream_connection_failure() {
         // Setup proxy with invalid upstream
@@ -417,6 +421,7 @@ mod tests {
         }
     }
 
+    #[tracing_test::traced_test]
     #[tokio::test]
     async fn test_upstream_closes_connection() {
         // Setup mock upstream that closes immediately
@@ -456,6 +461,7 @@ mod tests {
         assert_eq!(n, 0, "Should receive EOF when upstream closes");
     }
 
+    #[tracing_test::traced_test]
     #[tokio::test]
     async fn test_large_data_transfer() {
         // Setup mock upstream
@@ -502,6 +508,7 @@ mod tests {
         );
     }
 
+    #[tracing_test::traced_test]
     #[tokio::test]
     async fn test_multiple_concurrent_connections() {
         // Setup mock upstream
@@ -555,6 +562,7 @@ mod tests {
         }
     }
 
+    #[tracing_test::traced_test]
     #[tokio::test]
     async fn test_activity_stream_wrapper() {
         let state = test_state();
