@@ -2,7 +2,7 @@ use axum::{
     routing::{get, get_service, post},
     Router,
 };
-use k8s_openapi::api::core::v1::{Pod, Service};
+use k8s_openapi::api::core::v1::Pod;
 use kube::Client;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -80,10 +80,6 @@ async fn main() {
             gc_state.kube_client.clone(),
             &gc_state.config.workshop_namespace,
         );
-        let svc_api = kube::Api::<Service>::namespaced(
-            gc_state.kube_client.clone(),
-            &gc_state.config.workshop_namespace,
-        );
 
         let mut interval = tokio::time::interval(Duration::from_secs(300)); // Every 5 mins
         loop {
@@ -91,7 +87,6 @@ async fn main() {
             tracing::info!("GC: Running cleanup...");
             if let Err(e) = gc::cleanup_idle_pods(
                 &pod_api,
-                &svc_api,
                 &gc_state.config.workshop_name,
                 gc_state.config.workshop_idle_seconds,
             )

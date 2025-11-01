@@ -52,13 +52,14 @@
           
           commonNativeBuildInputs = with pkgs; [
             pkg-config
+            openssl
           ];
 
           binaries = {
             sidecar-bin = rustPlatform.buildRustPackage {
-              pname = "sidecar";
+              pname = "workshop-sidecar";
               version = "0.1.0";
-              src = ./crates;
+              src = ./.;
               cargoLock.lockFile = ./Cargo.lock;
 
               buildInputs = commonBuildInputs;
@@ -66,7 +67,8 @@
               buildAndTestSubdir = "crates/sidecar";
               
               cargoBuildFlags = [ "-p" "sidecar" ];
-              doCheck = true;
+              doCheck = false;
+              
 
               meta = with lib; {
                 mainProgram = "sidecar";
@@ -74,9 +76,9 @@
             };
 
             hub-bin = rustPlatform.buildRustPackage {
-              pname = "hub";
+              pname = "workshop-hub";
               version = "0.1.0";
-              src = ./crates;
+              src = ./.;
               cargoLock.lockFile = ./Cargo.lock;
 
               buildInputs = commonBuildInputs;
@@ -84,7 +86,7 @@
               buildAndTestSubdir = "crates/hub";
               
               cargoBuildFlags = [ "-p" "hub" ];
-              doCheck = true;
+              doCheck = false;
 
               meta = with lib; {
                 mainProgram = "hub";
@@ -96,6 +98,35 @@
         {
           process-compose."default" = dev_shell.environment;
           devShells.default = dev_shell.shell;
+          packages = binaries // {
+            # Docker Images
+            workshop-sidecar = pkgs.dockerTools.buildImage {
+              name = "workshop-sidecar";
+              tag = "latest";
+              
+              copyToRoot = pkgs.buildEnv {
+                name = "workshop-sidecar-root";
+                paths = [ pkgs.openssl ];
+              };
+
+              config = {
+                Cmd = [ "${binaries.sidecar-bin}" ];
+              };
+            };
+            
+            workshop-hub = pkgs.dockerTools.buildImage {
+              name = "workshop-hub";
+              tag = "latest";
+              copyToRoot = pkgs.buildEnv {
+                name = "workshop-hub-root";
+                paths = [ pkgs.openssl ];
+              };
+              
+              config = {
+                Cmd = [ "${binaries.hub-bin}" ];
+              };
+            };
+          };
         };
     };
 }

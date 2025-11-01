@@ -8,6 +8,63 @@ let
     targets.wasm32-unknown-unknown.stable.rust-std
   ];
 
+  uploadScript = pkgs.writeShellScriptBin "upload-to-ghcr" ''
+    #!/usr/bin/env bash
+    set -euo pipefail # Exit on error, unset variables, and pipe failures
+    
+    # This script assumes it's run from within the dev shell.
+    # The shellHook is expected to have already set:
+    # - GITHUB_USERNAME (from .envhost)
+    # - PROJECT_ROOT
+    # - And already run `docker login` for ghcr.io
+
+    if [[ -z "''${PROJECT_ROOT:-}" ]]; then
+      echo "Error: PROJECT_ROOT is not set. Are you in the dev shell?"
+      exit 1
+    fi
+    
+    # Use GITHUB_USERNAME as the GHCR owner.
+    # If pushing to an org, you might want to change this.
+
+    # Define images to build and push from the flake
+    # Format: "nix-package-name docker-image-name"
+    declare -a images=(
+      "workshop-sidecar workshop-sidecar"
+      "workshop-hub workshop-hub"
+    )
+
+    # Build, load, tag, and push each image
+    for img_pair in "''${images[@]}"; do
+      read -r nix_pkg docker_name <<< "$img_pair"
+      
+      local_tag="''${docker_name}:latest"
+      remote_tag="ghcr.io/nbhdai/''${docker_name}:latest"
+      result_link="result-''${nix_pkg}" # Unique out-link for the build
+
+      echo "--- Processing image: ''${docker_name} ---"
+      
+      echo "Building ''${nix_pkg}..."
+      # Build from the project root, as defined by the shellHook
+      nix build "''${PROJECT_ROOT}#''${nix_pkg}" --out-link "''${result_link}"
+      
+      echo "Loading ''${local_tag} into Docker..."
+      docker load < "''${result_link}"
+      
+      echo "Tagging ''${local_tag} as ''${remote_tag}..."
+      docker tag "''${local_tag}" "''${remote_tag}"
+      
+      echo "Pushing ''${remote_tag}..."
+      docker push "''${remote_tag}"
+      
+      # Clean up the result link
+      rm "''${result_link}"
+      echo "Successfully pushed ''${remote_tag}"
+      echo "-----------------------------------"
+    done
+
+    echo "All images pushed successfully!"
+  '';
+
   cliTools = with pkgs; [
     curl
     talosctl
@@ -19,6 +76,7 @@ let
     k9s
     cilium-cli
     hubble
+    uploadScript
   ] ++ [ rustToolchain ];
 in
 {

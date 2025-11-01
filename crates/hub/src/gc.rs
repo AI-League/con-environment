@@ -1,12 +1,9 @@
-use k8s_openapi::api::core::v1::{Pod, Service};
+use k8s_openapi::api::core::v1::Pod;
 use kube::api::{Api, DeleteParams, ListParams};
 use serde::Deserialize;
 use tracing::{info, warn};
 
-use crate::config::{LABEL_WORKSHOP_NAME, TTL_ANNOTATION}; // <-- Import labels
-
-// Max idle time in seconds (e.g., 1 hour)
-// const MAX_IDLE_SECONDS: u64 = 3600; // <-- No longer needed as a const
+use crate::config::{LABEL_WORKSHOP_NAME, TTL_ANNOTATION};
 
 #[derive(Deserialize, Debug)]
 struct SidecarHealth {
@@ -18,9 +15,8 @@ struct SidecarHealth {
 /// Iterates through all managed pods and cleans up idle ones.
 pub async fn cleanup_idle_pods(
     pod_api: &Api<Pod>,
-    svc_api: &Api<Service>,
     workshop_name: &str,
-    max_idle_seconds: u64, // <-- Pass in config
+    max_idle_seconds: u64,
 ) -> Result<(), crate::HubError> {
     let list_params = ListParams::default().labels(&format!(
         "{}={},{}={}",
@@ -36,6 +32,9 @@ pub async fn cleanup_idle_pods(
     }
 
     info!("GC: Checking {} managed pods...", pods.items.len());
+
+    // Extract namespace from the Api - this is what the Api is namespaced to
+    let namespace = pod_api.namespace().ok_or(crate::HubError::NamespaceMissing)?;
 
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -76,10 +75,10 @@ pub async fn cleanup_idle_pods(
         }
 
         // Pod is running, check its health endpoint
-        // Connect to the service's "health" port
+        // Connect to the service's "health" port using the namespace from the Api
         let health_url = format!(
-            "http://{}.default.svc.cluster.local:8080/health",
-            service_name
+            "http://{}.{}.svc.cluster.local:8080/health",
+            service_name, namespace
         );
 
         match client
@@ -103,7 +102,6 @@ pub async fn cleanup_idle_pods(
                     Ok(health) => {
                         info!("GC: Pod {} idle for {}s", pod_name, health.idle_seconds);
                         if health.idle_seconds > max_idle_seconds {
-                            // <-- Use configured value
                             info!("GC: Pod {} exceeded idle time. Deleting.", pod_name);
                             pod_api.delete(pod_name, &DeleteParams::default()).await?;
                         }

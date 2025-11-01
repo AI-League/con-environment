@@ -1,0 +1,513 @@
+---
+# workshop-hub-test-setup.yaml
+# Apply this file to prepare a Kubernetes cluster for workshop-hub tests
+# Usage: kubectl apply -f workshop-hub-test-setup.yaml
+
+# =============================================================================
+# Namespaces - Separate namespaces for hub and workshops
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workshop-hub-system
+  labels:
+    name: workshop-hub-system
+    purpose: workshop-hub-control-plane
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test-workshops
+  labels:
+    name: test-workshops
+    purpose: workshop-pods
+    managed-by: workshop-hub
+    # Baseline for workshop pods that may need more permissions
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
+---
+# =============================================================================
+# ServiceAccount for workshop-hub (in hub namespace)
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: workshop-hub-controller
+  namespace: workshop-hub-system
+  labels:
+    app: workshop-hub
+automountServiceAccountToken: true
+---
+# =============================================================================
+# ClusterRole for cross-namespace operations
+# We need ClusterRole because the hub needs to manage resources in a different namespace
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: workshop-hub-controller
+  labels:
+    app: workshop-hub
+rules:
+  # Pod management in workshop namespaces only
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  
+  # Pod status for health checks
+  - apiGroups: [""]
+    resources: ["pods/status"]
+    verbs: ["get"]
+  
+  # Service management in workshop namespaces
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  
+  # Ability to check if namespaces exist (but not create them)
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get"]
+---
+# =============================================================================
+# RoleBinding in workshop namespace (grants permissions to hub service account)
+# This allows the hub to manage resources in the workshop namespace
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: workshop-hub-manage-workshops
+  namespace: test-workshops
+  labels:
+    app: workshop-hub
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: workshop-hub-controller
+subjects:
+  - kind: ServiceAccount
+    name: workshop-hub-controller
+    namespace: workshop-hub-system
+---
+# =============================================================================
+# Role for hub's own namespace (minimal permissions)
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: workshop-hub-self
+  namespace: workshop-hub-system
+  labels:
+    app: workshop-hub
+rules:
+  # Hub only needs to read its own config in its namespace
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+---
+# =============================================================================
+# RoleBinding for hub's own namespace
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: workshop-hub-self-binding
+  namespace: workshop-hub-system
+  labels:
+    app: workshop-hub
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: workshop-hub-self
+subjects:
+  - kind: ServiceAccount
+    name: workshop-hub-controller
+    namespace: workshop-hub-system
+---
+# =============================================================================
+# NetworkPolicy for workshop namespace (allow hub to connect)
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: workshop-pods-policy
+  namespace: test-workshops
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/managed-by: workshop-hub
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow ingress from the hub namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: workshop-hub-system
+      ports:
+        - protocol: TCP
+          port: 80      # Workshop app port
+        - protocol: TCP
+          port: 8080    # Sidecar health port
+        - protocol: TCP
+          port: 8888    # Sidecar proxy port
+    # Allow ingress from other pods in the same namespace (for testing)
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+  egress:
+    # Allow all egress (workshops may need internet access)
+    - {}
+---
+# =============================================================================
+# NetworkPolicy for hub namespace (restrict hub pods)
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hub-network-policy
+  namespace: workshop-hub-system
+spec:
+  podSelector:
+    matchLabels:
+      app: workshop-hub
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow ingress on hub port
+    - ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # Allow DNS
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow communication with Kubernetes API
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 6443
+    # Allow communication with workshop pods
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: test-workshops
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8888
+---
+# =============================================================================
+# ResourceQuota for workshop namespace (prevent resource exhaustion)
+# =============================================================================
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: workshop-quota
+  namespace: test-workshops
+spec:
+  hard:
+    requests.cpu: "20"
+    requests.memory: "20Gi"
+    limits.cpu: "40"
+    limits.memory: "40Gi"
+    persistentvolumeclaims: "0"  # No persistent storage for workshops
+    pods: "100"
+    services: "100"
+---
+# =============================================================================
+# ResourceQuota for hub namespace (minimal resources needed)
+# =============================================================================
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: hub-quota
+  namespace: workshop-hub-system
+spec:
+  hard:
+    requests.cpu: "2"
+    requests.memory: "2Gi"
+    limits.cpu: "4"
+    limits.memory: "4Gi"
+    pods: "10"  # Hub shouldn't need many pods
+    services: "5"
+---
+# =============================================================================
+# LimitRange for workshop namespace
+# =============================================================================
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: workshop-limits
+  namespace: test-workshops
+spec:
+  limits:
+    - max:
+        cpu: "2"
+        memory: "2Gi"
+      min:
+        cpu: "10m"
+        memory: "4Mi"
+      default:
+        cpu: "100m"
+        memory: "128Mi"
+      defaultRequest:
+        cpu: "50m"
+        memory: "64Mi"
+      type: Container
+    - max:
+        cpu: "4"
+        memory: "4Gi"
+      type: Pod
+---
+# =============================================================================
+# ConfigMap for test configuration (in hub namespace)
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workshop-hub-config
+  namespace: workshop-hub-system
+data:
+  # Core configuration
+  workshop-name: "test-workshop"
+  workshop-namespace: "test-workshops"  # Where workshop pods will be created
+  hub-namespace: "workshop-hub-system"   # Where the hub runs
+  
+  # Workshop pod configuration
+  workshop-image: "nginxdemos/hello"
+  workshop-port: "80"
+  workshop-ttl-seconds: "600"
+  workshop-idle-seconds: "120"
+  workshop-pod-limit: "10"
+  
+  # Resource limits for workshop pods
+  workshop-cpu-request: "50m"
+  workshop-cpu-limit: "200m"
+  workshop-mem-request: "64Mi"
+  workshop-mem-limit: "256Mi"
+  
+  # Sidecar configuration
+  sidecar-image: "workshop-sidecar:latest"
+  sidecar-upstream-port: "80"
+  sidecar-proxy-port: "8888"
+  sidecar-health-port: "8080"
+---
+# =============================================================================
+# Secret for test JWT signing (in hub namespace - DO NOT USE IN PRODUCTION)
+# =============================================================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: workshop-hub-auth
+  namespace: workshop-hub-system
+type: Opaque
+data:
+  # Base64 encoded "test-secret-key" - DO NOT USE IN PRODUCTION
+  jwt-secret: dGVzdC1zZWNyZXQta2V5
+---
+# =============================================================================
+# Test client Pod in workshop namespace (for manual testing)
+# =============================================================================
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-client
+  namespace: test-workshops
+  labels:
+    app: test-client
+    purpose: manual-testing
+spec:
+  containers:
+    - name: client
+      image: curlimages/curl:latest
+      command: ["/bin/sh"]
+      args: ["-c", "while true; do sleep 30; done"]
+      resources:
+        requests:
+          cpu: "10m"
+          memory: "32Mi"
+        limits:
+          cpu: "100m"
+          memory: "64Mi"
+---
+# =============================================================================
+# Service for the workshop-hub (in hub namespace)
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: workshop-hub
+  namespace: workshop-hub-system
+  labels:
+    app: workshop-hub
+spec:
+  type: ClusterIP
+  selector:
+    app: workshop-hub
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+---
+# =============================================================================
+# Test validation Job (runs in hub namespace with hub permissions)
+# =============================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-setup-validation
+  namespace: workshop-hub-system
+spec:
+  ttlSecondsAfterFinished: 300  # Clean up after 5 minutes
+  template:
+    spec:
+      serviceAccountName: workshop-hub-controller
+      restartPolicy: Never
+      containers:
+        - name: validate
+          image: bitnami/kubectl:latest
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              echo "=== Validating Cross-Namespace Workshop Hub Setup ==="
+              
+              echo "1. Checking namespaces..."
+              kubectl get namespace workshop-hub-system
+              kubectl get namespace test-workshops
+              
+              echo "2. Checking service account..."
+              kubectl get serviceaccount workshop-hub-controller -n workshop-hub-system
+              
+              echo "3. Checking cross-namespace RBAC..."
+              echo "   Can hub create pods in workshop namespace?"
+              kubectl auth can-i create pods -n test-workshops --as=system:serviceaccount:workshop-hub-system:workshop-hub-controller
+              if [ $? -ne 0 ]; then
+                echo "   ERROR: Hub cannot create pods in workshop namespace!"
+                exit 1
+              fi
+              
+              echo "   Can hub create services in workshop namespace?"
+              kubectl auth can-i create services -n test-workshops --as=system:serviceaccount:workshop-hub-system:workshop-hub-controller
+              if [ $? -ne 0 ]; then
+                echo "   ERROR: Hub cannot create services in workshop namespace!"
+                exit 1
+              fi
+              
+              echo "   Can hub delete pods in workshop namespace?"
+              kubectl auth can-i delete pods -n test-workshops --as=system:serviceaccount:workshop-hub-system:workshop-hub-controller
+              if [ $? -ne 0 ]; then
+                echo "   ERROR: Hub cannot delete pods in workshop namespace!"
+                exit 1
+              fi
+              
+              echo "   Verifying hub CANNOT access secrets in either namespace..."
+              if kubectl auth can-i get secrets -n test-workshops --as=system:serviceaccount:workshop-hub-system:workshop-hub-controller; then
+                echo "   ERROR: Hub should NOT have secret access in workshop namespace!"
+                exit 1
+              else
+                echo "   ✓ Correctly denied secret access in workshop namespace"
+              fi
+              
+              if kubectl auth can-i create pods -n workshop-hub-system --as=system:serviceaccount:workshop-hub-system:workshop-hub-controller; then
+                echo "   ERROR: Hub should NOT be able to create pods in its own namespace!"
+                exit 1
+              else
+                echo "   ✓ Correctly denied pod creation in hub namespace"
+              fi
+              
+              echo "4. Checking ConfigMap in hub namespace..."
+              kubectl get configmap workshop-hub-config -n workshop-hub-system
+              
+              echo "5. Checking Secret in hub namespace..."
+              kubectl get secret workshop-hub-auth -n workshop-hub-system
+              
+              echo "6. Checking resource quotas..."
+              kubectl describe resourcequota workshop-quota -n test-workshops
+              kubectl describe resourcequota hub-quota -n workshop-hub-system
+              
+              echo "7. Testing cross-namespace pod creation..."
+              cat <<EOF | kubectl apply -f -
+              apiVersion: v1
+              kind: Pod
+              metadata:
+                name: cross-namespace-test
+                namespace: test-workshops
+                labels:
+                  app.kubernetes.io/managed-by: workshop-hub
+                  test: cross-namespace
+              spec:
+                containers:
+                - name: test
+                  image: busybox
+                  command: ["sleep", "10"]
+                  resources:
+                    requests:
+                      cpu: "10m"
+                      memory: "16Mi"
+              EOF
+              
+              sleep 5
+              
+              echo "8. Verifying pod was created in workshop namespace..."
+              kubectl get pod cross-namespace-test -n test-workshops
+              
+              echo "9. Testing cross-namespace service creation..."
+              cat <<EOF | kubectl apply -f -
+              apiVersion: v1
+              kind: Service
+              metadata:
+                name: cross-namespace-test
+                namespace: test-workshops
+                labels:
+                  app.kubernetes.io/managed-by: workshop-hub
+              spec:
+                selector:
+                  test: cross-namespace
+                ports:
+                - port: 80
+                  targetPort: 80
+              EOF
+              
+              kubectl get service cross-namespace-test -n test-workshops
+              
+              echo "10. Cleaning up test resources..."
+              kubectl delete pod cross-namespace-test -n test-workshops
+              kubectl delete service cross-namespace-test -n test-workshops
+              
+              echo "=== All cross-namespace validations passed! ==="
+              echo ""
+              echo "Hub namespace: workshop-hub-system"
+              echo "Workshop namespace: test-workshops"
+              echo "Hub can manage resources in workshop namespace: ✓"
+              echo "Hub cannot create resources in its own namespace: ✓"
+              echo "Hub cannot access secrets: ✓"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"

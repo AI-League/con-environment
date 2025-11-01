@@ -3,6 +3,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum HubError {
+    #[error("We don't know the namespace")]
+    NamespaceMissing,
+
     #[error("Kubernetes API error: {0}")]
     KubeError(#[from] KubeError),
 
@@ -27,6 +30,10 @@ pub enum HubError {
 impl axum::response::IntoResponse for HubError {
     fn into_response(self) -> axum::response::Response {
         let (status, message) = match self {
+            HubError::NamespaceMissing => (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "Internal server error".to_string(),
+            ),
             HubError::KubeError(_) => (
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal server error".to_string(),

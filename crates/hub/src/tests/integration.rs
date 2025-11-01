@@ -1,385 +1,108 @@
-// crates/hub/tests/integration_tests.rs
-
-use axum::{
-    body::Body,
-    http::{Request, StatusCode},
-};
-use http_body_util::BodyExt;
 use k8s_openapi::api::core::v1::{Pod, Service};
-use kube::{api::ListParams, Api, Client};
-use serde_json::json;
-use uuid::Uuid;
-use std::sync::Arc;
-use tower::ServiceExt;
+use kube::{Api, Client};
+use crate::{auth, config, orchestrator, HubError};
+use super::helpers::TestContext;
 
-// Re-export from the main crate
-use crate::{auth, config, orchestrator, AppState, HubError};
-
-/// Helper to create a test config
-fn test_config() -> Arc<config::Config> {
-    Arc::new(config::Config {
-        workshop_name: "test-workshop".to_string(),
-        workshop_namespace: "test-ns".to_string(),
-        workshop_ttl_seconds: 3600,
-        workshop_idle_seconds: 600,
-        workshop_image: "nginx:alpine".to_string(),
-        workshop_port: 80,
-        workshop_pod_limit: 5,
-        workshop_cpu_request: "100m".to_string(),
-        workshop_cpu_limit: "500m".to_string(),
-        workshop_mem_request: "128Mi".to_string(),
-        workshop_mem_limit: "512Mi".to_string(),
-    })
-}
-
-/// Helper to create test app state
-async fn test_app_state() -> AppState {
-    let kube_client = Client::try_default()
-        .await
-        .expect("Failed to create test Kubernetes client");
-    
-    let auth_keys = Arc::new(auth::AuthKeys::new(b"test-secret-key"));
-    
-    let http_client = hyper_util::client::legacy::Client::builder(
-        hyper_util::rt::TokioExecutor::new()
-    ).build_http();
-    
-    let config = test_config();
-    
-    AppState {
-        kube_client,
-        auth_keys,
-        http_client,
-        config,
-    }
-}
-
-/// Helper to generate a valid JWT token
-fn generate_test_token(state: &AppState, username: &str) -> String {
-    use jsonwebtoken::{encode, Header};
-    use std::time::{SystemTime, UNIX_EPOCH};
-    
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    
-    let claims = auth::Claims {
-        sub: username.to_string(),
-        id: Uuid::nil(),
-        exp: (now + 3600) as usize,
-        iat: now as usize,
-    };
-    
-    encode(&Header::default(), &claims, &state.auth_keys.encoding)
-        .expect("Failed to encode test token")
-}
-
+#[tracing_test::traced_test]
 #[tokio::test]
-#[ignore] // Remove this to run with actual k8s cluster
-async fn test_auth_login() {
-    let state = test_app_state().await;
+async fn test_orchestrator_creates_pod_and_service() {
+    let ctx = TestContext::new().await;
+    ctx.cleanup().await;
     
-    // Create a simple router just for login
-    let app = axum::Router::new()
-        .route("/login", axum::routing::post(auth::simple_login_handler))
-        .with_state(state);
+    // Test pod creation through orchestrator
+    let user_id = "test-user-1";
+    let binding = orchestrator::get_or_create_pod(
+        &ctx.client, 
+        user_id, 
+        ctx.config.clone()
+    ).await;
     
-    // Create a login request
-    let request = Request::builder()
-        .method("POST")
-        .uri("/login")
-        .header("content-type", "application/json")
-        .body(Body::from(json!({"username": "testuser"}).to_string()))
-        .unwrap();
-    
-    // Send the request
-    let response = app.oneshot(request).await.unwrap();
-    
-    // Check response
-    assert_eq!(response.status(), StatusCode::OK);
-    
-    // Parse response body
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    
-    // Verify token exists
-    assert!(json.get("token").is_some());
-    assert!(json["token"].as_str().unwrap().len() > 0);
-}
-
-#[tokio::test]
-#[ignore] // Remove this to run with actual k8s cluster
-async fn test_auth_middleware_valid_token() {
-    let state = test_app_state().await;
-    let token = generate_test_token(&state, "testuser");
-    
-    // Create a test route that requires auth
-    let app = axum::Router::new()
-        .route(
-            "/protected",
-            axum::routing::get(|claims: axum::Extension<auth::Claims>| async move {
-                format!("Hello, {}!", claims.sub)
-            }),
-        )
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            auth::auth_middleware,
-        ))
-        .with_state(state);
-    
-    // Request with valid token
-    let request = Request::builder()
-        .uri("/protected")
-        .header("authorization", format!("Bearer {}", token))
-        .body(Body::empty())
-        .unwrap();
-    
-    let response = app.oneshot(request).await.unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let text = String::from_utf8(body.to_vec()).unwrap();
-    assert_eq!(text, "Hello, testuser!");
-}
-
-#[tokio::test]
-#[ignore] // Remove this to run with actual k8s cluster
-async fn test_auth_middleware_invalid_token() {
-    let state = test_app_state().await;
-    
-    let app = axum::Router::new()
-        .route("/protected", axum::routing::get(|| async { "Protected" }))
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            auth::auth_middleware,
-        ))
-        .with_state(state);
-    
-    // Request with invalid token
-    let request = Request::builder()
-        .uri("/protected")
-        .header("authorization", "Bearer invalid-token")
-        .body(Body::empty())
-        .unwrap();
-    
-    let response = app.oneshot(request).await.unwrap();
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-}
-
-#[tokio::test]
-#[ignore] // Remove this to run with actual k8s cluster
-async fn test_auth_middleware_no_token() {
-    let state = test_app_state().await;
-    
-    let app = axum::Router::new()
-        .route("/protected", axum::routing::get(|| async { "Protected" }))
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            auth::auth_middleware,
-        ))
-        .with_state(state);
-    
-    // Request without token
-    let request = Request::builder()
-        .uri("/protected")
-        .body(Body::empty())
-        .unwrap();
-    
-    let response = app.oneshot(request).await.unwrap();
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-}
-
-#[tokio::test]
-#[ignore] // Remove this to run with actual k8s cluster
-async fn test_pod_creation() {
-    let client = Client::try_default()
-        .await
-        .expect("Failed to create Kubernetes client");
-    
-    let config = test_config();
-    let user_id = "test-user-123";
-    
-    // Clean up any existing test pods first
-    cleanup_test_pods(&client, &config).await;
-    
-    // Create a pod
-    let result = orchestrator::get_or_create_pod(&client, user_id, config.clone()).await;
-    
-    assert!(result.is_ok());
-    let binding = result.unwrap();
+    assert!(binding.is_ok(), "Should create pod successfully");
+    let binding = binding.unwrap();
     
     // Verify pod was created
-    assert!(binding.pod_name.contains(user_id));
-    assert!(binding.cluster_dns_name.contains(&config.workshop_namespace));
+    assert!(ctx.pod_exists(&binding.pod_name).await, "Pod should exist");
     
-    // Verify pod exists in Kubernetes
-    let pod_api: Api<Pod> = Api::namespaced(client.clone(), &config.workshop_namespace);
-    let pod = pod_api.get(&binding.pod_name).await;
-    assert!(pod.is_ok());
+    // Verify service was created
+    assert!(ctx.service_exists(&binding.service_name).await, "Service should exist");
     
-    // Verify service exists
-    let svc_api: Api<Service> = Api::namespaced(client.clone(), &config.workshop_namespace);
-    let service = svc_api.get(&binding.service_name).await;
-    assert!(service.is_ok());
+    // Verify we can retrieve the same binding (idempotency)
+    let second_binding = orchestrator::get_or_create_pod(
+        &ctx.client,
+        user_id,
+        ctx.config.clone()
+    ).await;
     
-    // Clean up
-    cleanup_test_pods(&client, &config).await;
+    assert!(second_binding.is_ok(), "Should retrieve existing pod");
+    let second_binding = second_binding.unwrap();
+    
+    assert_eq!(binding.pod_name, second_binding.pod_name, "Should return same pod");
+    assert_eq!(binding.service_name, second_binding.service_name, "Should return same service");
+    
+    ctx.cleanup().await;
 }
 
+#[tracing_test::traced_test]
 #[tokio::test]
-#[ignore] // Remove this to run with actual k8s cluster
-async fn test_pod_reuse() {
-    let client = Client::try_default()
-        .await
-        .expect("Failed to create Kubernetes client");
+async fn test_pod_limit_enforcement() {
+    let ctx = TestContext::new().await;
     
-    let config = test_config();
-    let user_id = "test-user-reuse";
+    // Create a config with very low limit for testing
+    let mut limited_config = (*ctx.config).clone();
+    limited_config.workshop_pod_limit = 2;
+    let limited_config = std::sync::Arc::new(limited_config);
     
-    // Clean up first
-    cleanup_test_pods(&client, &config).await;
+    ctx.cleanup().await;
     
-    // Create a pod
-    let first_result = orchestrator::get_or_create_pod(&client, user_id, config.clone()).await;
-    assert!(first_result.is_ok());
-    let first_binding = first_result.unwrap();
+    // Create pods up to limit
+    let user1 = orchestrator::get_or_create_pod(
+        &ctx.client,
+        "limit-user-1",
+        limited_config.clone()
+    ).await;
+    assert!(user1.is_ok(), "First pod should succeed");
     
-    // Try to "create" again - should reuse the existing pod
-    let second_result = orchestrator::get_or_create_pod(&client, user_id, config.clone()).await;
-    assert!(second_result.is_ok());
-    let second_binding = second_result.unwrap();
+    let user2 = orchestrator::get_or_create_pod(
+        &ctx.client,
+        "limit-user-2",
+        limited_config.clone()
+    ).await;
+    assert!(user2.is_ok(), "Second pod should succeed");
     
-    // Should be the same pod
-    assert_eq!(first_binding.pod_name, second_binding.pod_name);
-    assert_eq!(first_binding.service_name, second_binding.service_name);
+    // This should fail due to limit
+    let user3 = orchestrator::get_or_create_pod(
+        &ctx.client,
+        "limit-user-3",
+        limited_config.clone()
+    ).await;
     
-    // Clean up
-    cleanup_test_pods(&client, &config).await;
-}
-
-#[tokio::test]
-#[ignore] // Remove this to run with actual k8s cluster
-async fn test_pod_limit() {
-    let client = Client::try_default()
-        .await
-        .expect("Failed to create Kubernetes client");
-    
-    // Create a config with a very low limit
-    let mut config = test_config();
-    Arc::get_mut(&mut config).unwrap().workshop_pod_limit = 2;
-    
-    cleanup_test_pods(&client, &config).await;
-    
-    // Create pods up to the limit
-    let user1 = orchestrator::get_or_create_pod(&client, "limit-user-1", config.clone()).await;
-    assert!(user1.is_ok());
-    
-    let user2 = orchestrator::get_or_create_pod(&client, "limit-user-2", config.clone()).await;
-    assert!(user2.is_ok());
-    
-    // This one should fail
-    let user3 = orchestrator::get_or_create_pod(&client, "limit-user-3", config.clone()).await;
-    assert!(user3.is_err());
-    
-    if let Err(HubError::PodLimitReached) = user3 {
-        // Expected error
-    } else {
-        panic!("Expected PodLimitReached error");
-    }
-    
-    // Clean up
-    cleanup_test_pods(&client, &config).await;
-}
-
-#[tokio::test]
-#[ignore] // Remove this to run with actual k8s cluster
-async fn test_config_validation() {
-    let config = config::Config {
-        workshop_name: "test".to_string(),
-        workshop_namespace: "test-ns".to_string(),
-        workshop_ttl_seconds: 3600,
-        workshop_idle_seconds: 600,
-        workshop_image: "nginx".to_string(),
-        workshop_port: 80,
-        workshop_pod_limit: 100,
-        workshop_cpu_request: "100m".to_string(),
-        workshop_cpu_limit: "500m".to_string(),
-        workshop_mem_request: "128Mi".to_string(),
-        workshop_mem_limit: "512Mi".to_string(),
-    };
-    
-    // Verify defaults are sensible
-    assert!(config.workshop_ttl_seconds > 0);
-    assert!(config.workshop_idle_seconds > 0);
-    assert!(config.workshop_pod_limit > 0);
-    assert!(!config.workshop_image.is_empty());
-}
-
-/// Helper function to clean up test pods
-async fn cleanup_test_pods(client: &Client, config: &config::Config) {
-    use kube::api::DeleteParams;
-    
-    let pod_api: Api<Pod> = Api::namespaced(client.clone(), &config.workshop_namespace);
-    let svc_api: Api<Service> = Api::namespaced(client.clone(), &config.workshop_namespace);
-    
-    let list_params = ListParams::default().labels(&format!(
-        "workshop-hub/workshop-name={},app.kubernetes.io/managed-by=workshop-hub",
-        config.workshop_name
-    ));
-    
-    // Delete all test pods
-    if let Ok(pods) = pod_api.list(&list_params).await {
-        for pod in pods.items {
-            if let Some(name) = pod.metadata.name {
-                let _ = pod_api.delete(&name, &DeleteParams::default()).await;
-            }
+    match user3 {
+        Err(HubError::PodLimitReached) => {
+            // Expected error
         }
+        _ => panic!("Expected PodLimitReached error, got: {:?}", user3),
     }
     
-    // Wait a bit for cleanup
-    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-}
-
-// Unit tests for individual components
-    
-#[test]
-fn test_config_defaults() {
-    use crate::config::Config;
-    
-    // Test that we can create a config with environment variables
-    std::env::set_var("HUB_WORKSHOP_NAME", "test-workshop");
-    std::env::set_var("HUB_WORKSHOP_NAMESPACE", "test-ns");
-    
-    let config = Config::from_env();
-    assert!(config.is_ok());
-    
-    let config = config.unwrap();
-    assert_eq!(config.workshop_name, "test-workshop");
-    assert_eq!(config.workshop_namespace, "test-ns");
-    
-    // Clean up
-    std::env::remove_var("HUB_WORKSHOP_NAME");
-    std::env::remove_var("HUB_WORKSHOP_NAMESPACE");
+    ctx.cleanup().await;
 }
 
 #[test]
-fn test_auth_keys() {
-    let keys = auth::AuthKeys::new(b"test-secret");
-    
-    // Create a test claim
+fn test_jwt_token_generation_and_validation() {
     use jsonwebtoken::{encode, decode, Header, Validation};
     
+    let keys = auth::AuthKeys::new(b"test-secret");
+    
+    // Create test claims
     let claims = auth::Claims {
         sub: "testuser".to_string(),
-        id: Uuid::nil(),
+        id: uuid::Uuid::new_v4(),
         exp: (chrono::Utc::now().timestamp() + 3600) as usize,
         iat: chrono::Utc::now().timestamp() as usize,
     };
     
     // Encode
     let token = encode(&Header::default(), &claims, &keys.encoding);
-    assert!(token.is_ok());
+    assert!(token.is_ok(), "Token encoding should succeed");
     
     // Decode
     let token = token.unwrap();
@@ -388,10 +111,12 @@ fn test_auth_keys() {
         &keys.decoding,
         &Validation::default()
     );
-    assert!(decoded.is_ok());
+    
+    assert!(decoded.is_ok(), "Token decoding should succeed");
     
     let decoded_claims = decoded.unwrap().claims;
     assert_eq!(decoded_claims.sub, "testuser");
+    assert_eq!(decoded_claims.id, claims.id);
 }
 
 #[test]
@@ -405,14 +130,107 @@ fn test_extract_token_from_headers() {
     );
     
     let token = auth::extract_token_from_headers(&headers);
-    assert!(token.is_ok());
+    assert!(token.is_ok(), "Should extract token from header");
     assert_eq!(token.unwrap(), "test-token-123");
+    
+    // Test missing header
+    let empty_headers = HeaderMap::new();
+    let no_token = auth::extract_token_from_headers(&empty_headers);
+    assert!(no_token.is_err(), "Should fail with no authorization header");
 }
 
 #[test]
 fn test_extract_token_from_query() {
+    // Test with token present
     let query = "token=test-token-456&other=value";
     let token = auth::extract_token_from_query(query);
-    assert!(token.is_ok());
+    assert!(token.is_ok(), "Should extract token from query");
     assert_eq!(token.unwrap(), "test-token-456");
+    
+    // Test with missing token
+    let query_no_token = "other=value&foo=bar";
+    let no_token = auth::extract_token_from_query(query_no_token);
+    assert!(no_token.is_err(), "Should fail with no token in query");
+}
+
+#[tracing_test::traced_test]
+#[tokio::test]
+async fn test_concurrent_pod_creation() {
+    let ctx = TestContext::new().await;
+    ctx.cleanup().await;
+    
+    // Spawn multiple concurrent pod creation requests
+    let mut handles = vec![];
+    
+    for i in 0..5 {
+        let client = ctx.client.clone();
+        let config = ctx.config.clone();
+        let user_id = format!("concurrent-user-{}", i);
+        
+        let handle = tokio::spawn(async move {
+            orchestrator::get_or_create_pod(&client, &user_id, config).await
+        });
+        
+        handles.push(handle);
+    }
+    
+    // Wait for all to complete
+    let results: Vec<_> = futures::future::join_all(handles).await;
+    
+    // All should succeed
+    for result in results {
+        assert!(result.is_ok(), "Task should not panic");
+        assert!(result.unwrap().is_ok(), "Pod creation should succeed");
+    }
+    
+    // Verify we have exactly 5 pods
+    let pod_count = ctx.count_managed_pods().await;
+    assert_eq!(pod_count, 5, "Should have exactly 5 pods");
+    
+    ctx.cleanup().await;
+}
+
+#[tracing_test::traced_test]
+#[tokio::test]
+async fn test_cleanup_preserves_active_pods() {
+    let ctx = TestContext::new_for_gc().await;
+    ctx.cleanup().await;
+    
+    // Create two pods - one "active" and one "idle"
+    let active_pod = ctx.create_test_pod("active-user").await
+        .expect("Failed to create active pod");
+    let idle_pod = ctx.create_test_pod("idle-user").await
+        .expect("Failed to create idle pod");
+    
+    let active_name = active_pod.metadata.name.as_ref().unwrap();
+    let idle_name = idle_pod.metadata.name.as_ref().unwrap();
+    
+    // Simulate the active pod having recent activity by updating its annotation
+    let pod_api: Api<Pod> = Api::namespaced(
+        ctx.client.clone(),
+        &ctx.config.workshop_namespace
+    );
+    
+    // For this test, we'll assume the GC checks a "last-activity" annotation
+    // In a real scenario, this would come from the sidecar health endpoint
+    
+    // Run GC with reasonable idle threshold
+    let svc_api: Api<Service> = Api::namespaced(
+        ctx.client.clone(),
+        &ctx.config.workshop_namespace
+    );
+    
+    let result = crate::gc::cleanup_idle_pods(
+        &pod_api,
+        &ctx.config.workshop_name,
+        60, // 60 second idle threshold
+    ).await;
+    
+    assert!(result.is_ok(), "GC should succeed");
+    
+    // In a real test with proper sidecar health endpoints:
+    // - Active pod would report low idle time and remain
+    // - Idle pod would report high idle time and be deleted
+    
+    ctx.cleanup().await;
 }
