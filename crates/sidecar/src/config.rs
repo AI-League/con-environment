@@ -44,4 +44,3 @@ impl fmt::Display for Config {
         )
     }
 }
-

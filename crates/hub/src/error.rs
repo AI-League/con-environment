@@ -55,5 +55,3 @@ impl axum::response::IntoResponse for HubError {
         (status, message).into_response()
     }
 }
-
-

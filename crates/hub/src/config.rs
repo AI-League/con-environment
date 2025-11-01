@@ -20,7 +20,6 @@ pub struct Config {
     pub workshop_idle_seconds: u64,
 
     // --- New Fields Below ---
-
     /// The container image to use for the workshop.
     #[serde(default = "default_workshop_image")]
     pub workshop_image: String,
@@ -50,20 +49,41 @@ pub struct Config {
     pub workshop_mem_limit: String,
 }
 
-fn default_workshop_name() -> String { "workshop".to_string() }
-fn default_workshop_namespace() -> String { "default".to_string() }
-fn default_workshop_ttl() -> u64 { 8 * 60 * 60 } // 8 hours
-fn default_workshop_idle() -> u64 { 60 * 60 } // 1 hour
+fn default_workshop_name() -> String {
+    "workshop".to_string()
+}
+fn default_workshop_namespace() -> String {
+    "default".to_string()
+}
+fn default_workshop_ttl() -> u64 {
+    8 * 60 * 60
+} // 8 hours
+fn default_workshop_idle() -> u64 {
+    60 * 60
+} // 1 hour
 
 // --- New Defaults Below ---
-fn default_workshop_image() -> String { "nginx".to_string() } // Default to nginx
-fn default_workshop_port() -> u16 { 80 }
-fn default_workshop_pod_limit() -> usize { 100 } // Default to 100 pods
-fn default_workshop_cpu_request() -> String { "100m".to_string() }
-fn default_workshop_cpu_limit() -> String { "500m".to_string() }
-fn default_workshop_mem_request() -> String { "128Mi".to_string() }
-fn default_workshop_mem_limit() -> String { "512Mi".to_string() }
-
+fn default_workshop_image() -> String {
+    "nginx".to_string()
+} // Default to nginx
+fn default_workshop_port() -> u16 {
+    80
+}
+fn default_workshop_pod_limit() -> usize {
+    100
+} // Default to 100 pods
+fn default_workshop_cpu_request() -> String {
+    "100m".to_string()
+}
+fn default_workshop_cpu_limit() -> String {
+    "500m".to_string()
+}
+fn default_workshop_mem_request() -> String {
+    "128Mi".to_string()
+}
+fn default_workshop_mem_limit() -> String {
+    "512Mi".to_string()
+}
 
 /// The annotation key we use to store the expiration time on a pod.
 pub const TTL_ANNOTATION: &str = "workshop-hub/ttl-expires-at";
@@ -76,5 +96,3 @@ impl Config {
         envy::prefixed("HUB_").from_env::<Config>()
     }
 }
-
-

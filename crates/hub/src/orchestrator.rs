@@ -42,9 +42,7 @@ pub async fn get_or_create_pod(
     // 1. Try to find an existing pod
     let list_params = ListParams::default().labels(&format!(
         "{}={},{}={},{}={}",
-        LABEL_USER_ID, user_id,
-        LABEL_WORKSHOP_NAME, workshop_name,
-        LABEL_MANAGED_BY, HUB_ID
+        LABEL_USER_ID, user_id, LABEL_WORKSHOP_NAME, workshop_name, LABEL_MANAGED_BY, HUB_ID
     ));
 
     if let Some(pod) = pod_api.list(&list_params).await?.items.pop() {
@@ -62,7 +60,10 @@ pub async fn get_or_create_pod(
     }
 
     // 2. No pod found, check global limit before creating.
-    info!("No pod found for user {}. Checking global limit...", user_id);
+    info!(
+        "No pod found for user {}. Checking global limit...",
+        user_id
+    );
     let all_pods_list_params = ListParams::default().labels(&format!(
         "{}={},{}={}",
         LABEL_MANAGED_BY, HUB_ID, LABEL_WORKSHOP_NAME, workshop_name
@@ -107,7 +108,8 @@ pub async fn get_or_create_pod(
     };
 
     // Create the Service
-    let svc = create_workshop_service_spec(&service_name, &pod_name, user_id, workshop_name, owner_ref);
+    let svc =
+        create_workshop_service_spec(&service_name, &pod_name, user_id, workshop_name, owner_ref);
     svc_api.create(&PostParams::default(), &svc).await?;
     info!("Created service {}", service_name);
 
@@ -117,9 +119,7 @@ pub async fn get_or_create_pod(
     if let Err(e) = tokio::time::timeout(std::time::Duration::from_secs(180), running).await {
         warn!("Pod {} did not become ready in time: {}", pod_name, e);
         // Clean up the pod we just created
-        pod_api
-            .delete(&pod_name, &DeleteParams::default())
-            .await?;
+        pod_api.delete(&pod_name, &DeleteParams::default()).await?;
         return Err(HubError::PodNotReady);
     }
 
@@ -141,15 +141,15 @@ fn create_workshop_pod_spec(
 ) -> Pod {
     let mut labels = BTreeMap::new();
     labels.insert(LABEL_USER_ID.to_string(), user_id.to_string());
-    labels.insert(LABEL_WORKSHOP_NAME.to_string(), config.workshop_name.clone());
+    labels.insert(
+        LABEL_WORKSHOP_NAME.to_string(),
+        config.workshop_name.clone(),
+    );
     labels.insert(LABEL_MANAGED_BY.to_string(), HUB_ID.to_string());
     labels.insert("app".to_string(), pod_name.to_string()); // For service selector
 
     let mut annotations = BTreeMap::new();
-    annotations.insert(
-        TTL_ANNOTATION.to_string(),
-        expires_at_timestamp.to_string(),
-    );
+    annotations.insert(TTL_ANNOTATION.to_string(), expires_at_timestamp.to_string());
 
     // This is where you define your workshop container and the sidecar
     serde_json::from_value(json!({
@@ -270,6 +270,3 @@ fn generate_suffix() -> String {
         .collect::<String>()
         .to_lowercase()
 }
-
-
-

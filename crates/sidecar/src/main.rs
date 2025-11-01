@@ -1,9 +1,15 @@
-use std::sync::{atomic::{AtomicI64, Ordering}, Arc};
+use std::sync::{
+    atomic::{AtomicI64, Ordering},
+    Arc,
+};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 mod config;
 mod http_server;
-mod proxy; // <-- Renamed from tcp_proxy
+mod proxy;
+
+#[cfg(test)]
+mod tests;
 
 use config::Config;
 use tracing::{error, info};
@@ -14,7 +20,6 @@ pub struct AppState {
     /// The last time any activity was detected on a proxied stream.
     /// Stored as a Unix timestamp (seconds).
     last_activity: AtomicI64,
-    
     // We don't really need this mutex, AtomicI64 is sufficient.
     // Keeping it simple.
 }
@@ -28,7 +33,8 @@ impl AppState {
 
     /// Update the last activity timestamp to "now".
     pub fn update_activity(&self) {
-        self.last_activity.store(current_timestamp(), Ordering::Relaxed);
+        self.last_activity
+            .store(current_timestamp(), Ordering::Relaxed);
     }
 
     /// Get the last activity timestamp.
@@ -60,12 +66,12 @@ async fn main() {
             std::process::exit(1);
         }
     };
-    
+
     if let Err(e) = config.validate() {
         error!("Invalid configuration: {}", e);
         std::process::exit(1);
     }
-    
+
     let config = Arc::new(config);
     info!("Configuration loaded: {:?}", config);
 
@@ -88,4 +94,3 @@ async fn main() {
         error!("TCP proxy server failed: {}", e);
     }
 }
-

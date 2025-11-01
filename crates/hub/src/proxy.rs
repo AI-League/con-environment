@@ -14,16 +14,17 @@ use tracing::{info, warn};
 #[axum::debug_handler]
 pub async fn http_gateway_handler(
     State(state): State<AppState>,
-    Path((workshop, user_id, path)): Path<(String, String, String)>,
+    Path((workshop, path)): Path<(String, String)>,
     Extension(claims): Extension<auth::Claims>,
     request: Request<Body>,
 ) -> Result<Response, StatusCode> {
-    // 1. Validate Workshop and User
+    let user_id = get_user_id_from_claims(&claims);
+
+    if workshop != state.config.workshop_name {
+        return Err(StatusCode::NOT_FOUND);
+    }
     if workshop != state.config.workshop_name {
         return Err(StatusCode::NOT_FOUND); // Not the workshop we're configured for
-    }
-    if user_id != get_user_id_from_claims(&claims) {
-        return Err(StatusCode::FORBIDDEN); // Token user doesn't match URL user
     }
     info!("HTTP: Auth successful for user {}", user_id);
 
@@ -52,9 +53,13 @@ pub async fn http_gateway_handler(
 
     let (mut parts, body) = request.into_parts();
     let body = http_body_util::Full::new(body.collect().await.unwrap().to_bytes());
-    parts.uri = Uri::builder().scheme("http").authority(binding.cluster_dns_name).path_and_query(path).build().expect("valid uri");
+    parts.uri = Uri::builder()
+        .scheme("http")
+        .authority(binding.cluster_dns_name)
+        .path_and_query(path)
+        .build()
+        .expect("valid uri");
     let proxy_req = Request::from_parts(parts, body.into());
-
 
     // Send the proxy request
     match state.http_client.request(proxy_req).await {
@@ -65,4 +70,3 @@ pub async fn http_gateway_handler(
         }
     }
 }
-

@@ -1,10 +1,10 @@
-use axum::{routing::get, Router, Json};
 use axum::extract::State;
+use axum::{routing::get, Json, Router};
 use serde::Serialize;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{AppState, config::Config};
+use crate::{config::Config, AppState};
 
 #[derive(Serialize)]
 struct HealthStatus {
@@ -14,7 +14,10 @@ struct HealthStatus {
 }
 
 /// Runs the Axum HTTP server for health checks.
-pub async fn run_http_server(state: Arc<AppState>, config: Arc<Config>) -> Result<(), std::io::Error> {
+pub async fn run_http_server(
+    state: Arc<AppState>,
+    config: Arc<Config>,
+) -> Result<(), std::io::Error> {
     let app = Router::new()
         .route("/health", get(health_handler))
         .with_state(state);
@@ -30,7 +33,7 @@ async fn health_handler(State(state): State<Arc<AppState>>) -> Json<HealthStatus
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64;
-    
+
     let last_activity = state.get_last_activity();
     let idle_seconds = (now - last_activity).max(0) as u64;
 
@@ -40,4 +43,3 @@ async fn health_handler(State(state): State<Arc<AppState>>) -> Json<HealthStatus
         idle_seconds,
     })
 }
-

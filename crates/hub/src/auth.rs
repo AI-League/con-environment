@@ -9,13 +9,14 @@ use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation}
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use uuid::Uuid;
 
 use crate::AppState;
 
-/// JWT claims. `sub` (subject) will be the username.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: String,
+    pub sub: String, // username (for display)
+    pub id: Uuid,    // stable ID (for pod matching)
     pub exp: usize,
     pub iat: usize,
 }
@@ -41,7 +42,7 @@ pub struct LoginRequest {
     username: String,
 }
 
-/// Simple login handler. Creates a JWT for a user with just their username. 
+/// Simple login handler. Creates a JWT for a user with just their username.
 /// Insecure, but fine for workshops.
 #[axum::debug_handler]
 pub async fn simple_login_handler(
@@ -55,6 +56,7 @@ pub async fn simple_login_handler(
 
     let claims = Claims {
         sub: payload.username,
+        id: Uuid::new_v4(),
         // Token expires in 1 day
         exp: (now + Duration::from_secs(86400).as_secs()) as usize,
         iat: now as usize,
@@ -93,10 +95,10 @@ pub fn validate_token(keys: &AuthKeys, token: &str) -> Result<Claims, &'static s
 }
 
 /// Axum middleware for authenticating a request.
-pub async fn auth_middleware<B>(
+pub async fn auth_middleware(
     State(state): State<AppState>,
-    mut request: Request<B>,
-    next: Next<B>,
+    mut request: Request<axum::body::Body>,
+    next: Next,
 ) -> Result<Response, StatusCode> {
     // Try extracting token from headers first
     let token = match extract_token_from_headers(request.headers()) {
@@ -123,4 +125,3 @@ pub async fn auth_middleware<B>(
     // Continue to the next handler
     Ok(next.run(request).await)
 }
-

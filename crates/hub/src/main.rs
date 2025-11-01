@@ -121,13 +121,12 @@ async fn main() {
         // --- Fallback ---
         // Serves static files (e.g., your login page)
         .fallback_service(
-             get_service(ServeDir::new("public"))
-             .handle_error(|err| async move {
+            get_service(ServeDir::new("public")).handle_error(|err| async move {
                 (
                     hyper::StatusCode::INTERNAL_SERVER_ERROR,
                     format!("Failed to serve static file: {}", err),
                 )
-             })
+            }),
         )
         .with_state(state);
 
@@ -136,7 +135,9 @@ async fn main() {
     tracing::info!("Hub listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app.into_make_service()).await.unwrap();
+    axum::serve(listener, app.into_make_service())
+        .await
+        .unwrap();
 }
 
 /// Helper to get the user ID from JWT claims.
@@ -150,5 +151,3 @@ fn get_user_id_from_claims(claims: &auth::Claims) -> String {
         .collect::<String>()
         .to_lowercase()
 }
-
-

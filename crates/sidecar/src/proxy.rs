@@ -184,3 +184,400 @@ async fn proxy_connection(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::{TcpListener, TcpStream};
+    use tokio::time::sleep;
+
+    // Helper to create a test config with TCP target
+    fn test_config_tcp(target_addr: String) -> Config {
+        Config {
+            http_listen_addr: "127.0.0.1:0".to_string(), // Not used in proxy tests
+            tcp_listen_addr: "127.0.0.1:0".to_string(),
+            target_tcp_addr: Some(target_addr),
+            target_uds_path: None,
+        }
+    }
+
+    // Helper to create test AppState
+    fn test_state() -> Arc<AppState> {
+        Arc::new(AppState::new())
+    }
+
+    // Mock upstream server that echoes data back
+    async fn mock_echo_server(listener: TcpListener) {
+        loop {
+            if let Ok((mut socket, _)) = listener.accept().await {
+                tokio::spawn(async move {
+                    let mut buf = vec![0u8; 1024];
+                    while let Ok(n) = socket.read(&mut buf).await {
+                        if n == 0 {
+                            break;
+                        }
+                        let _ = socket.write_all(&buf[..n]).await;
+                    }
+                });
+            }
+        }
+    }
+
+    // Mock upstream server that closes immediately
+    async fn mock_close_server(listener: TcpListener) {
+        loop {
+            if let Ok((socket, _)) = listener.accept().await {
+                drop(socket); // Close immediately
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_basic_proxy_echo() {
+        // Setup mock upstream
+        let upstream_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let upstream_addr = upstream_listener.local_addr().unwrap();
+        tokio::spawn(mock_echo_server(upstream_listener));
+
+        // Setup proxy
+        let config = Arc::new(test_config_tcp(upstream_addr.to_string()));
+        let state = test_state();
+
+        let proxy_listener = TcpListener::bind(&config.tcp_listen_addr).await.unwrap();
+        let proxy_addr = proxy_listener.local_addr().unwrap();
+
+        // Spawn proxy server
+        let config_clone = config.clone();
+        let state_clone = state.clone();
+        tokio::spawn(async move {
+            loop {
+                if let Ok((stream, _)) = proxy_listener.accept().await {
+                    let s = state_clone.clone();
+                    let c = config_clone.clone();
+                    tokio::spawn(async move {
+                        let _ = proxy_connection(stream, s, c).await;
+                    });
+                }
+            }
+        });
+
+        // Give server time to start
+        sleep(Duration::from_millis(50)).await;
+
+        // Test client
+        let mut client = TcpStream::connect(proxy_addr).await.unwrap();
+
+        // Send test data
+        let test_data = b"Hello, proxy!";
+        client.write_all(test_data).await.unwrap();
+
+        // Read response
+        let mut buf = vec![0u8; test_data.len()];
+        client.read_exact(&mut buf).await.unwrap();
+
+        assert_eq!(&buf, test_data, "Echoed data should match sent data");
+    }
+
+    #[tokio::test]
+    async fn test_activity_tracking() {
+        // Setup mock upstream
+        let upstream_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let upstream_addr = upstream_listener.local_addr().unwrap();
+        tokio::spawn(mock_echo_server(upstream_listener));
+
+        // Setup proxy
+        let config = Arc::new(test_config_tcp(upstream_addr.to_string()));
+        let state = test_state();
+
+        let initial_activity = state.get_last_activity();
+
+        let proxy_listener = TcpListener::bind(&config.tcp_listen_addr).await.unwrap();
+        let proxy_addr = proxy_listener.local_addr().unwrap();
+
+        let config_clone = config.clone();
+        let state_clone = state.clone();
+        tokio::spawn(async move {
+            loop {
+                if let Ok((stream, _)) = proxy_listener.accept().await {
+                    let s = state_clone.clone();
+                    let c = config_clone.clone();
+                    tokio::spawn(async move {
+                        let _ = proxy_connection(stream, s, c).await;
+                    });
+                }
+            }
+        });
+
+        sleep(Duration::from_millis(50)).await;
+
+        // Wait a bit to ensure timestamp can differ
+        sleep(Duration::from_millis(1000)).await;
+
+        // Connect and send data
+        let mut client = TcpStream::connect(proxy_addr).await.unwrap();
+        client.write_all(b"test").await.unwrap();
+
+        // Read response
+        let mut buf = vec![0u8; 4];
+        client.read_exact(&mut buf).await.unwrap();
+
+        // Check activity was updated
+        let updated_activity = state.get_last_activity();
+        assert!(
+            updated_activity > initial_activity,
+            "Activity timestamp ({}) should be updated after data transfer, ({})",
+            initial_activity,
+            updated_activity
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bidirectional_data_flow() {
+        // Setup mock upstream
+        let upstream_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let upstream_addr = upstream_listener.local_addr().unwrap();
+        tokio::spawn(mock_echo_server(upstream_listener));
+
+        // Setup proxy
+        let config = Arc::new(test_config_tcp(upstream_addr.to_string()));
+        let state = test_state();
+
+        let proxy_listener = TcpListener::bind(&config.tcp_listen_addr).await.unwrap();
+        let proxy_addr = proxy_listener.local_addr().unwrap();
+
+        let config_clone = config.clone();
+        let state_clone = state.clone();
+        tokio::spawn(async move {
+            loop {
+                if let Ok((stream, _)) = proxy_listener.accept().await {
+                    let s = state_clone.clone();
+                    let c = config_clone.clone();
+                    tokio::spawn(async move {
+                        let _ = proxy_connection(stream, s, c).await;
+                    });
+                }
+            }
+        });
+
+        sleep(Duration::from_millis(50)).await;
+
+        let mut client = TcpStream::connect(proxy_addr).await.unwrap();
+
+        // Send multiple messages
+        for i in 0..5 {
+            let msg = format!("Message {}", i);
+            client.write_all(msg.as_bytes()).await.unwrap();
+
+            let mut buf = vec![0u8; msg.len()];
+            client.read_exact(&mut buf).await.unwrap();
+
+            assert_eq!(buf, msg.as_bytes());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_upstream_connection_failure() {
+        // Setup proxy with invalid upstream
+        let config = Arc::new(test_config_tcp("127.0.0.1:1".to_string())); // Port 1 should be unavailable
+        let state = test_state();
+
+        let proxy_listener = TcpListener::bind(&config.tcp_listen_addr).await.unwrap();
+        let proxy_addr = proxy_listener.local_addr().unwrap();
+
+        let config_clone = config.clone();
+        let state_clone = state.clone();
+        tokio::spawn(async move {
+            loop {
+                if let Ok((stream, _)) = proxy_listener.accept().await {
+                    let s = state_clone.clone();
+                    let c = config_clone.clone();
+                    tokio::spawn(async move {
+                        let _ = proxy_connection(stream, s, c).await;
+                    });
+                }
+            }
+        });
+
+        sleep(Duration::from_millis(50)).await;
+
+        // Connection should fail or be immediately closed
+        let result = TcpStream::connect(proxy_addr).await;
+        if let Ok(mut client) = result {
+            // If connection succeeds, writing should fail
+            let write_result = client.write_all(b"test").await;
+            assert!(
+                write_result.is_err() || {
+                    // Or reading should return EOF
+                    let mut buf = vec![0u8; 4];
+                    client.read(&mut buf).await.unwrap_or(0) == 0
+                }
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_upstream_closes_connection() {
+        // Setup mock upstream that closes immediately
+        let upstream_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let upstream_addr = upstream_listener.local_addr().unwrap();
+        tokio::spawn(mock_close_server(upstream_listener));
+
+        // Setup proxy
+        let config = Arc::new(test_config_tcp(upstream_addr.to_string()));
+        let state = test_state();
+
+        let proxy_listener = TcpListener::bind(&config.tcp_listen_addr).await.unwrap();
+        let proxy_addr = proxy_listener.local_addr().unwrap();
+
+        let config_clone = config.clone();
+        let state_clone = state.clone();
+        tokio::spawn(async move {
+            loop {
+                if let Ok((stream, _)) = proxy_listener.accept().await {
+                    let s = state_clone.clone();
+                    let c = config_clone.clone();
+                    tokio::spawn(async move {
+                        let _ = proxy_connection(stream, s, c).await;
+                    });
+                }
+            }
+        });
+
+        sleep(Duration::from_millis(50)).await;
+
+        // Connect to proxy
+        let mut client = TcpStream::connect(proxy_addr).await.unwrap();
+
+        // Try to read - should get EOF since upstream closed
+        let mut buf = vec![0u8; 100];
+        let n = client.read(&mut buf).await.unwrap();
+        assert_eq!(n, 0, "Should receive EOF when upstream closes");
+    }
+
+    #[tokio::test]
+    async fn test_large_data_transfer() {
+        // Setup mock upstream
+        let upstream_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let upstream_addr = upstream_listener.local_addr().unwrap();
+        tokio::spawn(mock_echo_server(upstream_listener));
+
+        // Setup proxy
+        let config = Arc::new(test_config_tcp(upstream_addr.to_string()));
+        let state = test_state();
+
+        let proxy_listener = TcpListener::bind(&config.tcp_listen_addr).await.unwrap();
+        let proxy_addr = proxy_listener.local_addr().unwrap();
+
+        let config_clone = config.clone();
+        let state_clone = state.clone();
+        tokio::spawn(async move {
+            loop {
+                if let Ok((stream, _)) = proxy_listener.accept().await {
+                    let s = state_clone.clone();
+                    let c = config_clone.clone();
+                    tokio::spawn(async move {
+                        let _ = proxy_connection(stream, s, c).await;
+                    });
+                }
+            }
+        });
+
+        sleep(Duration::from_millis(50)).await;
+
+        let mut client = TcpStream::connect(proxy_addr).await.unwrap();
+
+        // Send 1MB of data
+        let large_data = vec![0xAB; 1024 * 1024];
+        client.write_all(&large_data).await.unwrap();
+
+        // Read it back
+        let mut received = vec![0u8; large_data.len()];
+        client.read_exact(&mut received).await.unwrap();
+
+        assert_eq!(
+            received, large_data,
+            "Large data transfer should work correctly"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_multiple_concurrent_connections() {
+        // Setup mock upstream
+        let upstream_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let upstream_addr = upstream_listener.local_addr().unwrap();
+        tokio::spawn(mock_echo_server(upstream_listener));
+
+        // Setup proxy
+        let config = Arc::new(test_config_tcp(upstream_addr.to_string()));
+        let state = test_state();
+
+        let proxy_listener = TcpListener::bind(&config.tcp_listen_addr).await.unwrap();
+        let proxy_addr = proxy_listener.local_addr().unwrap();
+
+        let config_clone = config.clone();
+        let state_clone = state.clone();
+        tokio::spawn(async move {
+            loop {
+                if let Ok((stream, _)) = proxy_listener.accept().await {
+                    let s = state_clone.clone();
+                    let c = config_clone.clone();
+                    tokio::spawn(async move {
+                        let _ = proxy_connection(stream, s, c).await;
+                    });
+                }
+            }
+        });
+
+        sleep(Duration::from_millis(50)).await;
+
+        // Create multiple concurrent connections
+        let mut handles = vec![];
+        for i in 0..10 {
+            let addr = proxy_addr;
+            let handle = tokio::spawn(async move {
+                let mut client = TcpStream::connect(addr).await.unwrap();
+                let msg = format!("Client {}", i);
+                client.write_all(msg.as_bytes()).await.unwrap();
+
+                let mut buf = vec![0u8; msg.len()];
+                client.read_exact(&mut buf).await.unwrap();
+
+                assert_eq!(buf, msg.as_bytes());
+            });
+            handles.push(handle);
+        }
+
+        // Wait for all connections to complete
+        for handle in handles {
+            handle.await.unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn test_activity_stream_wrapper() {
+        let state = test_state();
+        let initial_time = state.get_last_activity();
+
+        // Create a simple in-memory stream
+        let (mut client, server) = tokio::io::duplex(1024);
+
+        // Wrap it with ActivityStream
+        let mut wrapped = ActivityStream::new(server, state.clone());
+
+        // Wait a bit to ensure timestamp differs
+        sleep(Duration::from_millis(1000)).await;
+
+        // Write data through the wrapper
+        client.write_all(b"test").await.unwrap();
+
+        // Read through the wrapper
+        let mut buf = vec![0u8; 4];
+        wrapped.read_exact(&mut buf).await.unwrap();
+
+        // Activity should be updated
+        let updated_time = state.get_last_activity();
+        assert!(updated_time > initial_time, "Activity should be tracked");
+    }
+}
