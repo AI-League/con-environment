@@ -110,12 +110,12 @@ async fn main() {
     // --- 7. Define Routes ---
     let app = Router::new()
         .route("/login", post(auth::simple_login_handler))
+        .route("/", get(show_login_page))
+        .route("/index.html", get(show_login_page))
         .route(
             "/{workshop}/{*path}",
             get(proxy::http_gateway_handler),
         )
-        .route("/", get(show_login_page))
-        .route("/index.html", get(show_login_page))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth::auth_middleware,
