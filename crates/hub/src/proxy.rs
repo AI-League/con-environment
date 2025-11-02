@@ -1,31 +1,33 @@
 use crate::{auth, get_user_id_from_claims, orchestrator, AppState, HubError};
 use axum::{
-    body::Body,
-    extract::{Path, State},
-    http::{Request, StatusCode, Uri},
-    response::{IntoResponse, Response},
-    Extension,
+    Extension, body::Body, extract::{Path, State}, http::{Request, StatusCode, Uri}, response::{Html, IntoResponse, Response}
 };
 use http_body_util::BodyExt;
 //use tokio_util::io::ReaderStream;
-use tracing::{info, warn};
+use tracing::{info, debug, warn};
 
 /// Axum handler that performs auth and proxies HTTP requests.
 #[axum::debug_handler]
 pub async fn http_gateway_handler(
     State(state): State<AppState>,
-    Path((workshop, path)): Path<(String, String)>,
-    Extension(claims): Extension<auth::Claims>,
+    Path(path): Path<Option<String>>,
+    Extension(claims): Extension<Option<auth::Claims>>,
     request: Request<Body>,
 ) -> Result<Response, StatusCode> {
-    let user_id = get_user_id_from_claims(&claims);
+    if claims.is_none() {
+        
+    }
+    let user_id = match claims {
+        Some(claims) => {
+            let user = get_user_id_from_claims(&claims);
+            debug!(user, "Authorized");
+            user
+        }
+        None => {
 
-    if workshop != state.config.workshop_name {
-        return Err(StatusCode::NOT_FOUND);
-    }
-    if workshop != state.config.workshop_name {
-        return Err(StatusCode::NOT_FOUND); // Not the workshop we're configured for
-    }
+            return Ok(Html(include_str!("default_index.html")).into_response());
+        }
+    };
     info!("HTTP: Auth successful for user {}", user_id);
 
     // 2. Get or Create Pod
@@ -50,6 +52,7 @@ pub async fn http_gateway_handler(
 
     // 3. Proxy the request
     info!("HTTP: Proxying to {}", binding.cluster_dns_name);
+    let path = path.unwrap_or("/".to_string());
 
     let (mut parts, body) = request.into_parts();
     let body = http_body_util::Full::new(body.collect().await.unwrap().to_bytes());

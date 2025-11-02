@@ -1,7 +1,6 @@
 use axum::{
-    Router, response::IntoResponse, routing::{get, post}
+    Router, routing::{get, post}
 };
-use hyper::{StatusCode, header};
 use k8s_openapi::api::core::v1::Pod;
 use kube::Client;
 use std::net::SocketAddr;
@@ -19,6 +18,8 @@ mod orchestrator;
 mod proxy;
 
 pub use error::HubError;
+
+use crate::{auth::AuthLayer, proxy::http_gateway_handler};
 
 pub static SIDECAR: &'static str = "ghcr.io/nbhdai/workshop-sidecar:latest";
 
@@ -38,14 +39,6 @@ pub struct AppState {
     config: Arc<config::Config>, // <-- Add config
 }
 
-async fn show_login_page() -> impl IntoResponse {
-    (
-        StatusCode::OK,
-        [(header::CONTENT_TYPE, "text/html")],
-        include_str!("default_index.html")
-    )
-}
-
 #[tokio::main]
 async fn main() {
     // Set up logging
@@ -62,7 +55,9 @@ async fn main() {
         .expect("Failed to create Kubernetes client. Is KUBECONFIG set?");
 
     // --- 2. Initialize Auth ---
-    let auth_keys = Arc::new(auth::AuthKeys::new(b"my-super-secret-key"));
+    let secret_key = std::env::var("HUB_AUTH_SIGNING_KEY")
+        .expect("HUB_AUTH_SIGNING_KEY must be set");
+    let auth_keys = Arc::new(auth::AuthKeys::new(secret_key.as_bytes()));
 
     // --- 3. Initialize Config ---
     let config = Arc::new(config::Config::from_env().expect("Failed to load config from env"));
@@ -76,7 +71,7 @@ async fn main() {
     // --- 5. Create AppState ---
     let state = AppState {
         kube_client: kube_client.clone(),
-        auth_keys,
+        auth_keys: auth_keys.clone(),
         http_client,
         config: config.clone(), // <-- Add config to state
     };
@@ -110,16 +105,9 @@ async fn main() {
     // --- 7. Define Routes ---
     let app = Router::new()
         .route("/login", post(auth::simple_login_handler))
-        .route("/", get(show_login_page))
-        .route("/index.html", get(show_login_page))
-        .route(
-            "/{workshop}/{*path}",
-            get(proxy::http_gateway_handler),
-        )
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            auth::auth_middleware,
-        ))
+        .route("/", get(http_gateway_handler))
+        .route("/workshop/{*path}", get(http_gateway_handler))
+        .layer(AuthLayer::new(auth_keys))
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
