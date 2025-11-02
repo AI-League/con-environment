@@ -7,7 +7,7 @@ use kube::Client;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use tower_http::services::ServeDir;
+use tower_http::{services::ServeDir, trace::TraceLayer};
 use tracing::Level;
 
 // Project modules
@@ -101,12 +101,7 @@ async fn main() {
 
     // --- 7. Define Routes ---
     let app = Router::new()
-        // Mock login to get a token.
-        // POST /login with JSON `{"username": "my-user"}`
         .route("/login", post(auth::simple_login_handler))
-        //
-        // --- Workshop Routes ---
-        // These routes are all protected by the auth middleware.
         .route(
             "/{workshop}/{*path}",
             get(proxy::http_gateway_handler),
@@ -115,8 +110,6 @@ async fn main() {
             state.clone(),
             auth::auth_middleware,
         ))
-        // --- Fallback ---
-        // Serves static files (e.g., your login page)
         .fallback_service(
             get_service(ServeDir::new("public")).handle_error(|err| async move {
                 (
@@ -125,6 +118,7 @@ async fn main() {
                 )
             }),
         )
+        .layer(TraceLayer::new_for_http())
         .with_state(state);
 
     // --- 7. Run Server ---
