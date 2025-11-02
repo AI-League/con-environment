@@ -1,0 +1,436 @@
+# =============================================================================
+# 1. Namespaces
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workshop-hub-system
+  labels:
+    name: workshop-hub-system
+    purpose: workshop-hub-control-plane
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test-workshops
+  labels:
+    name: test-workshops
+    purpose: workshop-pods
+    managed-by: workshop-hub
+---
+# =============================================================================
+# 2. RBAC (ServiceAccount, ClusterRole, Bindings)
+# =============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: workshop-hub-controller
+  namespace: workshop-hub-system
+  labels:
+    app: workshop-hub
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: workshop-hub-controller
+  labels:
+    app: workshop-hub
+rules:
+  # Pod management in workshop namespaces only
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch", "update"] # Merged verbs from dev-tilt
+  
+  # Pod status for health checks
+  - apiGroups: [""]
+    resources: ["pods/status"]
+    verbs: ["get"]
+  
+  # Service management in workshop namespaces
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch", "update"] # Merged verbs from dev-tilt
+  
+  # Secret management in workshop namespaces (from dev-tilt)
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch", "update"] # Merged verbs from dev-tilt
+
+  # Ability to check if namespaces exist (but not create them)
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: workshop-hub-manage-workshops
+  namespace: test-workshops # Binds role in the workshop namespace
+  labels:
+    app: workshop-hub
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: workshop-hub-controller
+subjects:
+  - kind: ServiceAccount
+    name: workshop-hub-controller
+    namespace: workshop-hub-system # To the hub's SA
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: workshop-hub-self
+  namespace: workshop-hub-system # For hub's own namespace
+  labels:
+    app: workshop-hub
+rules:
+  # Hub needs to read its own config
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: workshop-hub-self-binding
+  namespace: workshop-hub-system
+  labels:
+    app: workshop-hub
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: workshop-hub-self
+subjects:
+  - kind: ServiceAccount
+    name: workshop-hub-controller
+    namespace: workshop-hub-system
+---
+# =============================================================================
+# 3. Cilium Network Policies
+# =============================================================================
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-hub-to-workshops
+  namespace: test-workshops # <-- Adapted namespace
+spec:
+  endpointSelector: {}
+  ingress:
+    # Allow traffic from hub namespace
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: workshop-hub-system # <-- Adapted namespace
+            app: workshop-hub
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+            - port: "8080"
+              protocol: TCP
+            - port: "8888"
+              protocol: TCP
+    
+    # Allow traffic from within workshops namespace (pod-to-pod)
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: test-workshops # <-- Adapted namespace
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-workshops-egress
+  namespace: test-workshops # <-- Adapted namespace
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/managed-by: workshop-hub
+  egress:
+    # Allow DNS
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+    
+    # Allow internet access
+    - toEntities:
+        - world
+    
+    # Allow pod-to-pod in same namespace
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: test-workshops # <-- Adapted namespace
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-integration-tests
+  namespace: workshop-hub-system # <-- Adapted namespace
+spec:
+  endpointSelector:
+    matchLabels:
+      app: workshop-integration-tests # This will match the integration test Job
+  egress:
+    # Allow tests to reach hub
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: workshop-hub-system # <-- Adapted namespace
+            app: workshop-hub
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    
+    # Allow tests to reach workshops
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: test-workshops # <-- Adapted namespace
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+            - port: "8080"
+              protocol: TCP
+            - port: "8888"
+              protocol: TCP
+    
+    # Allow DNS
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+    
+    # Allow Kubernetes API access
+    - toEntities:
+        - kube-apiserver
+---
+# =============================================================================
+# 4. Resource Limits & Configuration
+# =============================================================================
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: workshop-quota
+  namespace: test-workshops
+spec:
+  hard:
+    requests.cpu: "20"
+    requests.memory: "20Gi"
+    limits.cpu: "40"
+    limits.memory: "40Gi"
+    pods: "100"
+    services: "100"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: hub-quota
+  namespace: workshop-hub-system
+spec:
+  hard:
+    requests.cpu: "2"
+    requests.memory: "2Gi"
+    limits.cpu: "4"
+    limits.memory: "4Gi"
+    pods: "10"
+    services: "5"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: workshop-limits
+  namespace: test-workshops
+spec:
+  limits:
+    - max:
+        cpu: "2"
+        memory: "2Gi"
+      min:
+        cpu: "10m"
+        memory: "4Mi"
+      default:
+        cpu: "100m"
+        memory: "128Mi"
+      defaultRequest:
+        cpu: "50m"
+        memory: "64Mi"
+      type: Container
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workshop-hub-config
+  namespace: workshop-hub-system
+data:
+  # Core configuration
+  workshop-name: "test-workshop"
+  workshop-namespace: "test-workshops"
+  hub-namespace: "workshop-hub-system"
+  
+  # Workshop pod configuration
+  workshop-image: "nginxdemos/hello:latest" # Image from dev-tilt
+  workshop-port: "80"                       # Port from dev-tilt
+  workshop-ttl-seconds: "3600"              # TTL from dev-tilt
+  workshop-idle-seconds: "600"              # Idle from dev-tilt
+  workshop-pod-limit: "10"                  # Limit from dev-tilt
+  
+  # Resource limits for workshop pods
+  workshop-cpu-request: "50m"
+  workshop-cpu-limit: "200m"
+  workshop-mem-request: "64Mi"
+  workshop-mem-limit: "128Mi"
+  
+  # Sidecar configuration
+  sidecar-image: "workshop-sidecar:dev" # Image from dev-tilt
+  sidecar-upstream-port: "80"
+  sidecar-proxy-port: "8888"
+  sidecar-health-port: "8080"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: workshop-hub-auth
+  namespace: workshop-hub-system
+type: Opaque
+data:
+  # Base64 encoded "test-secret-key"
+  jwt-secret: dGVzdC1zZWNyZXQta2V5
+---
+# =============================================================================
+# 5. Hub Deployment & Service
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workshop-hub
+  namespace: workshop-hub-system # <-- Adapted namespace
+  labels:
+    app: workshop-hub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: workshop-hub
+  template:
+    metadata:
+      labels:
+        app: workshop-hub
+    spec:
+      serviceAccountName: workshop-hub-controller # <-- Use correct SA
+      containers:
+        - name: workshop-hub
+          image: workshop-hub:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          env:
+            # Auth Config
+            - name: HUB_AUTH_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: workshop-hub-auth
+                  key: jwt-secret # <-- Pull from the Secret
+            
+            # Logging
+            - name: RUST_LOG
+              value: "info,workshop_hub=debug"
+            
+            # Workshop Config - All pulled from ConfigMap
+            - name: HUB_WORKSHOP_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: workshop-hub-config
+                  key: workshop-name
+            - name: HUB_WORKSHOP_NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: workshop-hub-config
+                  key: workshop-namespace
+            - name: HUB_WORKSHOP_TTL_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: workshop-hub-config
+                  key: workshop-ttl-seconds
+            - name: HUB_WORKSHOP_IDLE_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: workshop-hub-config
+                  key: workshop-idle-seconds
+            - name: HUB_WORKSHOP_POD_LIMIT
+              valueFrom:
+                configMapKeyRef:
+                  name: workshop-hub-config
+                  key: workshop-pod-limit
+            
+            # User Container Config - All pulled from ConfigMap
+            - name: HUB_WORKSHOP_IMAGE
+              valueFrom:
+                configMapKeyRef:
+                  name: workshop-hub-config
+                  key: workshop-image
+            - name: HUB_WORKSHOP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: workshop-hub-config
+                  key: workshop-port
+            - name: HUB_WORKSHOP_CPU_REQUEST
+              valueFrom:
+                configMapKeyRef:
+                  name: workshop-hub-config
+                  key: workshop-cpu-request
+            - name: HUB_WORKSHOP_CPU_LIMIT
+              valueFrom:
+                configMapKeyRef:
+                  name: workshop-hub-config
+                  key: workshop-cpu-limit
+            - name: HUB_WORKSHOP_MEM_REQUEST
+              valueFrom:
+                configMapKeyRef:
+                  name: workshop-hub-config
+                  key: workshop-mem-request
+            - name: HUB_WORKSHOP_MEM_LIMIT
+              valueFrom:
+                configMapKeyRef:
+                  name: workshop-hub-config
+                  key: workshop-mem-limit
+            
+            # Sidecar Config - Pulled from ConfigMap
+            - name: HUB_WORKSHOP_SIDECAR_IMAGE
+              valueFrom:
+                configMapKeyRef:
+                  name: workshop-hub-config
+                  key: sidecar-image
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workshop-hub
+  namespace: workshop-hub-system # <-- Correct namespace
+  labels:
+    app: workshop-hub
+spec:
+  type: ClusterIP
+  selector:
+    app: workshop-hub
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP

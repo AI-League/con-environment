@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workshop Login</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: grid;
+            place-items: center;
+            min-height: 90vh;
+            background-color: #f4f7f6;
+        }
+        form {
+            background: #ffffff;
+            border: 1px solid #d1d1d1;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        h1 {
+            font-size: 1.5rem;
+            text-align: center;
+            margin-top: 0;
+        }
+        div {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        input[type="text"] {
+            width: 300px;
+            padding: 0.75rem;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 4px;
+            background-color: #007aff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #error-msg {
+            color: red;
+            margin-top: 1rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <form id="login-form">
+        <h1>Workshop Hub Login</h1>
+        <div>
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        <button type="submit">Login</button>
+        <p id="error-msg" aria-live="assertive"></p>
+    </form>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorMsg = document.getElementById('error-msg');
+            const username = document.getElementById('username').value;
+            errorMsg.textContent = '';
+
+            try {
+                // 1. Send the username to the /login endpoint
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Login failed. Please try again.');
+                }
+
+                const data = await response.json();
+
+                // 2. Save the token and redirect
+                if (data.token) {
+                    localStorage.setItem('workshop-token', data.token);
+                    
+                    // Redirect to the default workshop path.
+                    // This uses the default name "workshop" from config.rs
+                    const workshopName = "workshop";
+                    
+                    // Redirect to the root of the workshop.
+                    // The auth middleware will handle the token from localStorage
+                    // for subsequent requests (like WebSocket upgrades).
+                    window.location.href = `/${workshopName}/`;
+                } else {
+                    throw new Error('No token received from server.');
+                }
+
+            } catch (err) {
+                errorMsg.textContent = err.message;
+            }
+        });
+    </script>
+</body>
+</html>

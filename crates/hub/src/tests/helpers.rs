@@ -118,7 +118,6 @@ impl TestContext {
         
         let claims = auth::Claims {
             sub: username.to_string(),
-            id: Uuid::new_v4(),
             exp: (now + 3600) as usize,
             iat: now as usize,
         };

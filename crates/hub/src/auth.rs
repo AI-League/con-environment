@@ -16,7 +16,6 @@ use crate::AppState;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String, // username (for display)
-    pub id: Uuid,    // stable ID (for pod matching)
     pub exp: usize,
     pub iat: usize,
 }
@@ -56,7 +55,6 @@ pub async fn simple_login_handler(
 
     let claims = Claims {
         sub: payload.username,
-        id: Uuid::new_v4(),
         // Token expires in 1 day
         exp: (now + Duration::from_secs(86400).as_secs()) as usize,
         iat: now as usize,

@@ -39,7 +39,11 @@
             inherit inputs pkgs system hostSystemName;
           };
 
-          rustToolchain = fenix.packages.${system}.stable.minimalToolchain;
+          rustToolchain = with fenix.packages.${system}; 
+          (toolchainOf {
+            channel = "1.89.0";  # or whatever version you need
+            sha256 = "sha256-+9FmLhAOezBZCOziO0Qct1NOrfpjNsXxc/8I0c7BdKE=";
+          }).minimalToolchain;
 
           rustPlatform = pkgs.makeRustPlatform {
             cargo = rustToolchain;
@@ -65,7 +69,9 @@
               buildInputs = commonBuildInputs;
               nativeBuildInputs = commonNativeBuildInputs;
               buildAndTestSubdir = "crates/sidecar";
-              
+              env = {
+                LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath [ pkgs.openssl ]}";
+              };
               cargoBuildFlags = [ "-p" "sidecar" ];
               doCheck = false;
               
@@ -84,12 +90,35 @@
               buildInputs = commonBuildInputs;
               nativeBuildInputs = commonNativeBuildInputs;
               buildAndTestSubdir = "crates/hub";
-              
+              env = {
+                LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath [ pkgs.openssl ]}";
+              };
               cargoBuildFlags = [ "-p" "hub" ];
               doCheck = false;
 
               meta = with lib; {
                 mainProgram = "hub";
+              };
+            };
+
+            integration-tests-bin = rustPlatform.buildRustPackage {
+              pname = "integration-tests";
+              version = "0.1.0";
+              src = ./.;
+              cargoLock.lockFile = ./Cargo.lock;
+
+              buildInputs = commonBuildInputs;
+              nativeBuildInputs = commonNativeBuildInputs;
+              buildAndTestSubdir = "crates/integration-tests";
+              
+              cargoBuildFlags = [ "-p" "integration-tests" ];
+              doCheck = false;
+              env = {
+                LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath [ pkgs.openssl ]}";
+              };
+
+              meta = with lib; {
+                mainProgram = "integration-tests";
               };
             };
           };
@@ -103,27 +132,35 @@
             workshop-sidecar = pkgs.dockerTools.buildImage {
               name = "workshop-sidecar";
               tag = "latest";
-              
-              copyToRoot = pkgs.buildEnv {
-                name = "workshop-sidecar-root";
-                paths = [ pkgs.openssl ];
-              };
 
               config = {
-                Cmd = [ "${binaries.sidecar-bin}" ];
+                Cmd = [ "${binaries.sidecar-bin}/bin/sidecar" ];
               };
             };
             
             workshop-hub = pkgs.dockerTools.buildImage {
               name = "workshop-hub";
               tag = "latest";
-              copyToRoot = pkgs.buildEnv {
-                name = "workshop-hub-root";
-                paths = [ pkgs.openssl ];
-              };
+
+              copyToRoot = [
+                (pkgs.buildEnv {
+                  name = "workshop-hub-static";
+                  paths = [ .crates/hub/public ]; # Copies the ./public directory
+                })
+              ];
               
               config = {
-                Cmd = [ "${binaries.hub-bin}" ];
+                Cmd = [ "${binaries.hub-bin}/bin/hub" ];
+                WorkingDir = "/";
+              };
+            };
+
+            workshop-integration-tests = pkgs.dockerTools.buildImage {
+              name = "workshop-integration-tests";
+              tag = "latest";
+              
+              config = {
+                Cmd = [ "${binaries.integration-tests-bin}/bin/integration-tests" ];
               };
             };
           };

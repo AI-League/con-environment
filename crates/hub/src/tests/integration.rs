@@ -89,7 +89,6 @@ fn test_jwt_token_generation_and_validation() {
     // Create test claims
     let claims = auth::Claims {
         sub: "testuser".to_string(),
-        id: uuid::Uuid::new_v4(),
         exp: (chrono::Utc::now().timestamp() + 3600) as usize,
         iat: chrono::Utc::now().timestamp() as usize,
     };
@@ -110,7 +109,6 @@ fn test_jwt_token_generation_and_validation() {
     
     let decoded_claims = decoded.unwrap().claims;
     assert_eq!(decoded_claims.sub, "testuser");
-    assert_eq!(decoded_claims.id, claims.id);
 }
 
 #[test]

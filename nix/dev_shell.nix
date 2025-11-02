@@ -237,6 +237,8 @@ in
           environment = {
             KUBECONFIG = ".data/talos/kubeconfig";
             HOSTNAME = hostSystemName;
+            NIX_CONFIG = "experimental-features = nix-command flakes";
+            NIX_PATH = "nixpkgs=${pkgs.path}";
           };
         };
       };
