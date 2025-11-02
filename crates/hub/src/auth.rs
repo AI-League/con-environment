@@ -9,7 +9,6 @@ use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation}
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use uuid::Uuid;
 
 use crate::AppState;
 
@@ -63,7 +62,7 @@ pub async fn simple_login_handler(
     let token = encode(&Header::default(), &claims, &state.auth_keys.encoding)
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create token"))?;
 
-    Ok(Json(json!({ "token": token })))
+    Ok(Json(json!({ "token": token, "workshop_name": state.config.workshop_name })))
 }
 
 /// Extracts the JWT from the Authorization header.

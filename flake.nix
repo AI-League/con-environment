@@ -141,17 +141,9 @@
             workshop-hub = pkgs.dockerTools.buildImage {
               name = "workshop-hub";
               tag = "latest";
-
-              copyToRoot = [
-                (pkgs.buildEnv {
-                  name = "workshop-hub-static";
-                  paths = [ .crates/hub/public ]; # Copies the ./public directory
-                })
-              ];
               
               config = {
                 Cmd = [ "${binaries.hub-bin}/bin/hub" ];
-                WorkingDir = "/";
               };
             };
 

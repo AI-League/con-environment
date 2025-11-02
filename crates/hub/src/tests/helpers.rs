@@ -1,7 +1,6 @@
 use k8s_openapi::api::core::v1::{Pod, Service, Namespace};
 use kube::{api::{DeleteParams, PostParams, ListParams}, Api, Client};
 use serde_json::json;
-use uuid::Uuid;
 use std::sync::Arc;
 use std::collections::BTreeMap;
 use std::time::Duration;

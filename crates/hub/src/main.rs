@@ -1,13 +1,13 @@
 use axum::{
-    routing::{get, get_service, post},
-    Router,
+    Router, response::IntoResponse, routing::{get, post}
 };
+use hyper::{StatusCode, header};
 use k8s_openapi::api::core::v1::Pod;
 use kube::Client;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use tower_http::{services::ServeDir, trace::TraceLayer};
+use tower_http::trace::TraceLayer;
 use tracing::Level;
 
 // Project modules
@@ -36,6 +36,14 @@ pub struct AppState {
     >,
     /// Hub configuration
     config: Arc<config::Config>, // <-- Add config
+}
+
+async fn show_login_page() -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "text/html")],
+        include_str!("default_index.html")
+    )
 }
 
 #[tokio::main]
@@ -106,23 +114,17 @@ async fn main() {
             "/{workshop}/{*path}",
             get(proxy::http_gateway_handler),
         )
+        .route("/", get(show_login_page))
+        .route("/index.html", get(show_login_page))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth::auth_middleware,
         ))
-        .fallback_service(
-            get_service(ServeDir::new("public")).handle_error(|err| async move {
-                (
-                    hyper::StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Failed to serve static file: {}", err),
-                )
-            }),
-        )
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
     // --- 7. Run Server ---
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
+    let addr = SocketAddr::from(([0; 8], 8080));
     tracing::info!("Hub listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();

@@ -12,9 +12,9 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: test-workshops
+  name: workshop
   labels:
-    name: test-workshops
+    name: workshop
     purpose: workshop-pods
     managed-by: workshop-hub
 ---
@@ -65,7 +65,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: workshop-hub-manage-workshops
-  namespace: test-workshops # Binds role in the workshop namespace
+  namespace: workshop # Binds role in the workshop namespace
   labels:
     app: workshop-hub
 roleRef:
@@ -113,7 +113,7 @@ apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
   name: allow-hub-to-workshops
-  namespace: test-workshops # <-- Adapted namespace
+  namespace: workshop # <-- Adapted namespace
 spec:
   endpointSelector: {}
   ingress:
@@ -134,13 +134,13 @@ spec:
     # Allow traffic from within workshops namespace (pod-to-pod)
     - fromEndpoints:
         - matchLabels:
-            io.kubernetes.pod.namespace: test-workshops # <-- Adapted namespace
+            io.kubernetes.pod.namespace: workshop # <-- Adapted namespace
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
   name: allow-workshops-egress
-  namespace: test-workshops # <-- Adapted namespace
+  namespace: workshop # <-- Adapted namespace
 spec:
   endpointSelector:
     matchLabels:
@@ -163,7 +163,7 @@ spec:
     # Allow pod-to-pod in same namespace
     - toEndpoints:
         - matchLabels:
-            io.kubernetes.pod.namespace: test-workshops # <-- Adapted namespace
+            io.kubernetes.pod.namespace: workshop # <-- Adapted namespace
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
@@ -188,7 +188,7 @@ spec:
     # Allow tests to reach workshops
     - toEndpoints:
         - matchLabels:
-            io.kubernetes.pod.namespace: test-workshops # <-- Adapted namespace
+            io.kubernetes.pod.namespace: workshop # <-- Adapted namespace
       toPorts:
         - ports:
             - port: "80"
@@ -219,7 +219,7 @@ apiVersion: v1
 kind: ResourceQuota
 metadata:
   name: workshop-quota
-  namespace: test-workshops
+  namespace: workshop
 spec:
   hard:
     requests.cpu: "20"
@@ -247,7 +247,7 @@ apiVersion: v1
 kind: LimitRange
 metadata:
   name: workshop-limits
-  namespace: test-workshops
+  namespace: workshop
 spec:
   limits:
     - max:
@@ -272,7 +272,7 @@ metadata:
 data:
   # Core configuration
   workshop-name: "test-workshop"
-  workshop-namespace: "test-workshops"
+  workshop-namespace: "workshop"
   hub-namespace: "workshop-hub-system"
   
   # Workshop pod configuration

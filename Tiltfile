@@ -72,36 +72,36 @@ k8s_resource('workshop-hub',
     resource_deps=['secrets'],
 )
 
-# ============================================================================
-# Integration Tests Infrastructure
-# ============================================================================
+# # ============================================================================
+# # Integration Tests Infrastructure
+# # ============================================================================
 
-# Deploy integration tests (as a job that can be retriggered)
-k8s_yaml('crates/integration-tests/config.yaml')
+# # Deploy integration tests (as a job that can be retriggered)
+# k8s_yaml('crates/integration-tests/config.yaml')
 
-# Make the integration tests retriggerable
-k8s_resource('workshop-integration-tests',
-    labels=['tests'],
-    resource_deps=['workshop-hub'],
-    trigger_mode=TRIGGER_MODE_MANUAL,  # Don't auto-run, trigger manually
-)
+# # Make the integration tests retriggerable
+# k8s_resource('workshop-integration-tests',
+#     labels=['tests'],
+#     resource_deps=['workshop-hub'],
+#     trigger_mode=TRIGGER_MODE_MANUAL,  # Don't auto-run, trigger manually
+# )
 
-# Add a button to run tests
-local_resource(
-    'run-integration-tests',
-    labels=['tests'],
-    cmd='kubectl delete job workshop-integration-tests -n default --ignore-not-found && kubectl apply -f integration-tests-job.yaml',
-    resource_deps=['workshop-hub'],
-    trigger_mode=TRIGGER_MODE_MANUAL,
-    auto_init=False,
-)
+# # Add a button to run tests
+# local_resource(
+#     'run-integration-tests',
+#     labels=['tests'],
+#     cmd='kubectl delete job workshop-integration-tests -n default --ignore-not-found && kubectl apply -f integration-tests-job.yaml',
+#     resource_deps=['workshop-hub'],
+#     trigger_mode=TRIGGER_MODE_MANUAL,
+#     auto_init=False,
+# )
 
-# Add a button to view test logs
-local_resource(
-    'test-logs',
-    labels=['tests'],
-    cmd='kubectl logs job/workshop-integration-tests -n default --tail=100 || echo "No logs available yet"',
-    resource_deps=['workshop-integration-tests'],
-    trigger_mode=TRIGGER_MODE_MANUAL,
-    auto_init=False,
-)
+# # Add a button to view test logs
+# local_resource(
+#     'test-logs',
+#     labels=['tests'],
+#     cmd='kubectl logs job/workshop-integration-tests -n default --tail=100 || echo "No logs available yet"',
+#     resource_deps=['workshop-integration-tests'],
+#     trigger_mode=TRIGGER_MODE_MANUAL,
+#     auto_init=False,
+# )
