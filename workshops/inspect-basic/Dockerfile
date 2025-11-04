@@ -23,6 +23,7 @@ ENV PATH="/home/coder/venv/bin:$PATH"
 # Install VS Code extensions
 RUN code-server --install-extension ms-python.python
 RUN code-server --install-extension ukaisi.inspect-ai
+RUN code-server --install-extension janisdd.vscode-edit-csv
 
 # Copy your workspace files
 COPY --chown=coder:coder ./workspace /home/coder/workspace
@@ -33,5 +34,7 @@ RUN pip install --no-cache-dir -r /home/coder/requirements.txt
 
 WORKDIR /home/coder/workspace
 
-# This is the key - run jupyterhub-singleuser which handles the auth and API
-CMD ["code-server","--bind-addr", "0.0.0.0:8888","--auth", "none","--disable-telemetry","/home/coder/workspace"]
+# Create a startup script that activates venv before running code-server
+RUN echo '#!/bin/bash\nsource /home/coder/venv/bin/activate\nexec code-server --bind-addr 0.0.0.0:8888 --auth none --disable-telemetry /home/coder/workspace' > /home/coder/start.sh && chmod +x /home/coder/start.sh
+
+CMD ["/home/coder/start.sh"]s
