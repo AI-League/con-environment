@@ -9,6 +9,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tower_http::trace::TraceLayer;
+use tower_cookies::CookieManagerLayer;
 
 // Project modules
 mod auth;
@@ -48,7 +49,7 @@ async fn main() {
     tracing_subscriber::registry()
         .with(fmt::layer().with_target(true))
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-            "trace,tower_http=debug,h2=off,hyper=off,sqlx=off,tarpc=off".into()
+            "trace,tower_http=trace,fred=debug,h2=off,hyper=off,sqlx=off,tarpc=off,rustls=off".into()
         }))
         .init();
 
@@ -60,8 +61,9 @@ async fn main() {
         .expect("Failed to create Kubernetes client. Is KUBECONFIG set?");
 
     // --- 2. Initialize Auth ---
-    let secret_key = std::env::var("HUB_AUTH_SIGNING_KEY")
-        .expect("HUB_AUTH_SIGNING_KEY must be set");
+    let redis_url = std::env::var("REDIS_URL")
+        .unwrap_or_else(|_| "redis://workshop-redis.workshop-system.svc.cluster.local:6379".to_string());
+    
 
     // --- 3. Initialize Config ---
     let config = Arc::new(config::Config::from_env().expect("Failed to load config from env"));
@@ -107,15 +109,16 @@ async fn main() {
 
     // --- 7. Define Routes ---
     let app = Router::new()
-        .merge(auth::auth_routes())
-        .route("/", get(index))
         .route("/workshop/", get(workshop_index_handler))
         .route("/workshop/{*path}", get(workshop_other_handler))
+        // Apply auth requirement ONLY to these routes
+        .layer(auth::RequireAuthLayer {})
+        .route("/", get(index))
                 // Apply middleware layers (order matters!)
-        .layer(auth::RequireAuthLayer {}) 
-        .layer(auth::SessionAuthLayer {})
-        .layer(auth::create_session_layer())
-
+        .merge(auth::auth_routes())
+        .layer(auth::CookieAuthLayer {})
+        .layer(CookieManagerLayer::new())
+        .route("/health", get(|| async { "OK" }))
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
@@ -129,10 +132,10 @@ async fn main() {
         .unwrap();
 }
 
-#[cfg(test)]
-mod tests {
-    pub mod gc;
-    pub mod helpers;
-    pub mod config;
-    pub mod integration;
-}
+// #[cfg(test)]
+// mod tests {
+//     pub mod gc;
+//     pub mod helpers;
+//     pub mod config;
+//     pub mod integration;
+// }

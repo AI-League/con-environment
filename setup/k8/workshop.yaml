@@ -1,3 +1,4 @@
+
 # =============================================================================
 # 1. Namespaces
 # =============================================================================
@@ -340,17 +341,17 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http  
+            initialDelaySeconds: 15 
+            periodSeconds: 30
+            failureThreshold: 3
           env:
-            # Auth Config
-            - name: HUB_AUTH_SIGNING_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: workshop-hub-auth
-                  key: jwt-secret # <-- Pull from the Secret
-            
             # Logging
             - name: RUST_LOG
-              value: "info,workshop_hub=debug"
+              value: "trace,tower_http=debug,tower=info,fred=debug,h2=off,hyper=off,sqlx=off,tarpc=off,rustls=off"
             
             # Workshop Config - All pulled from ConfigMap
             - name: HUB_WORKSHOP_NAME

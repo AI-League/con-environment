@@ -18,6 +18,7 @@ local_resource(
 )
 
 k8s_yaml('./setup/k8/model-proxy.yaml')
+
 k8s_resource('ai-proxy',
     labels=['setup'],
     resource_deps=['secrets'],
@@ -69,7 +70,7 @@ k8s_yaml('./setup/k8/workshop.yaml')
 k8s_resource('workshop-hub',
     port_forwards='8080:8080',
     labels=['hub'],
-    resource_deps=['secrets'],
+    resource_deps=['ai-proxy', 'workshop-redis'],
 )
 
 # # ============================================================================

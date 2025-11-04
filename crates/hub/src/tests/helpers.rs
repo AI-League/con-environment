@@ -78,8 +78,7 @@ impl TestContext {
         // Make workshop_name unique to this namespace
         config_clone.workshop_name = format!("{}-test", config_clone.workshop_name);
         let config = Arc::new(config_clone);
-        
-        let auth_keys = Arc::new(auth::AuthKeys::new(b"test-secret-key"));
+    
         
         let http_client = hyper_util::client::legacy::Client::builder(
             hyper_util::rt::TokioExecutor::new()
@@ -87,7 +86,6 @@ impl TestContext {
         
         let state = AppState {
             kube_client: client.clone(),
-            auth_keys,
             http_client,
             config: config.clone(),
         };
