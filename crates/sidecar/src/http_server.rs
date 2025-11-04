@@ -24,7 +24,7 @@ pub async fn run_http_server(
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
-    let listener = tokio::net::TcpListener::bind(&config.http_listen_addr).await?;
+    let listener = tokio::net::TcpListener::bind(&config.http_listen).await?;
     axum::serve(listener, app).await?;
     Ok(())
 }
