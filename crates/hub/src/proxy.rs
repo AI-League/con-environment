@@ -55,17 +55,20 @@ pub async fn http_handler(
     };
 
     // 3. Proxy the request
-    info!("HTTP: Proxying to {}", binding.cluster_dns_name);
+    info!("HTTP: Proxying to {}:8888", binding.cluster_dns_name);
     let path = path.unwrap_or("/".to_string());
 
     let (mut parts, body) = request.into_parts();
     let body = http_body_util::Full::new(body.collect().await.unwrap().to_bytes());
+    
+    // Build URI with explicit port 8888 (the sidecar's proxy port)
     parts.uri = Uri::builder()
         .scheme("http")
-        .authority(binding.cluster_dns_name)
+        .authority(format!("{}:8888", binding.cluster_dns_name))
         .path_and_query(path)
         .build()
         .expect("valid uri");
+    
     let proxy_req = Request::from_parts(parts, body.into());
 
     // Send the proxy request

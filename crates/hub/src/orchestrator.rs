@@ -201,9 +201,35 @@ fn create_workshop_pod_spec(
                         {"name": "proxy", "containerPort": 8888}
                     ],
                     "resources": {
-                        "requests": {"cpu": "50m", "memory": "64Mi"},
-                        "limits": {"cpu": "100m", "memory": "128Mi"}
-                    }
+                        "requests": {"cpu": config.workshop_cpu_request, "memory": config.workshop_mem_request},
+                        "limits": {"cpu": config.workshop_cpu_limit, "memory": config.workshop_mem_limit},
+                    },
+                    // Readiness probe: Is the sidecar ready to accept traffic?
+                    "readinessProbe": {
+                        "httpGet": {
+                            "path": "/health",
+                            "port": 8080,
+                            "scheme": "HTTP"
+                        },
+                        "initialDelaySeconds": 0,
+                        "periodSeconds": 10,
+                        "timeoutSeconds": 1,
+                        "successThreshold": 1,
+                        "failureThreshold": 4
+                    },
+                    // Liveness probe: Is the sidecar still alive?
+                    "livenessProbe": {
+                        "httpGet": {
+                            "path": "/health",
+                            "port": 8080,
+                            "scheme": "HTTP"
+                        },
+                        "initialDelaySeconds": 10,
+                        "periodSeconds": 10,
+                        "timeoutSeconds": 1,
+                        "successThreshold": 1,
+                        "failureThreshold": 3
+                    },
                 }
             ]
         }
