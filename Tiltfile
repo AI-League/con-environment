@@ -74,6 +74,20 @@ k8s_resource('workshop-hub',
 )
 
 # # ============================================================================
+# # Workshop dev
+# # ============================================================================
+
+docker_build("workshop-inspect-basic", "./workshops/inspect-basic")
+k8s_yaml('./workshops/inspect-basic/tilt-service.yaml')
+
+k8s_resource('inspect-basic',
+    port_forwards='8085:8080',
+    labels=['hub'],
+    resource_deps=['ai-proxy', 'workshop-redis'],
+)
+
+
+# # ============================================================================
 # # Integration Tests Infrastructure
 # # ============================================================================
 

@@ -16,6 +16,7 @@ atomic-waker = "1.1.2"
 futures-util = "0.3.30"
 pin-project-lite = "0.2.14"
 pin-project = "1.1.10"
+tower-http = { version = "0.6.6", features = ["trace"] }
 
 [profile.release]
 lto = true

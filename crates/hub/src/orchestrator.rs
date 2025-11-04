@@ -187,7 +187,7 @@ fn create_workshop_pod_spec(
                 {
                     "name": "sidecar",
                     "image": crate::SIDECAR, 
-                    "imagePullPolicy": "IfNotPresent",
+                    "imagePullPolicy": "Always",
                     "env": [
                         // axum health server
                         {"name": "SIDECAR_HTTP_LISTEN", "value": "0.0.0.0:8080"},

@@ -213,6 +213,47 @@ spec:
     - toEntities:
         - kube-apiserver
 ---
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-workshop-to-ai-proxy
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: ai-proxy
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: workshop
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+---
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-ai-proxy-egress
+  namespace: workshop
+spec:
+  endpointSelector: {}
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        io.kubernetes.pod.namespace: default
+        app: ai-proxy
+    toPorts:
+    - ports:
+      - port: "80"
+        protocol: TCP
+  - toFQDNs:
+    - matchName: "ai-proxy-svc.default.svc.cluster.local"
+    toPorts:
+    - ports:
+      - port: "80"
+        protocol: TCP
+---
 # =============================================================================
 # 4. Resource Limits & Configuration
 # =============================================================================
@@ -290,7 +331,7 @@ data:
   workshop-mem-limit: "128Mi"
   
   # Sidecar configuration
-  sidecar-image: "workshop-sidecar:dev" # Image from dev-tilt
+  sidecar-image: "workshop-sidecar:dev"
   sidecar-upstream-port: "80"
   sidecar-proxy-port: "8888"
   sidecar-health-port: "8080"

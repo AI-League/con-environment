@@ -1,6 +1,7 @@
 use axum::extract::State;
 use axum::{routing::get, Json, Router};
 use serde::Serialize;
+use tower_http::trace::TraceLayer;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -20,6 +21,7 @@ pub async fn run_http_server(
 ) -> Result<(), std::io::Error> {
     let app = Router::new()
         .route("/health", get(health_handler))
+        .layer(TraceLayer::new_for_http())
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind(&config.http_listen_addr).await?;

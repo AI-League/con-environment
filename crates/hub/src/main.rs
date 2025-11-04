@@ -60,11 +60,6 @@ async fn main() {
         .await
         .expect("Failed to create Kubernetes client. Is KUBECONFIG set?");
 
-    // --- 2. Initialize Auth ---
-    let redis_url = std::env::var("REDIS_URL")
-        .unwrap_or_else(|_| "redis://workshop-redis.workshop-system.svc.cluster.local:6379".to_string());
-    
-
     // --- 3. Initialize Config ---
     let config = Arc::new(config::Config::from_env().expect("Failed to load config from env"));
     tracing::info!("Config loaded: {:?}", config);

@@ -4,19 +4,19 @@ use std::fmt;
 #[derive(Deserialize, Debug, Clone)]
 pub struct Config {
     /// Address for the HTTP health server (e.g., "0.0.0.0:8080")
-    #[serde(rename = "SIDECAR_HTTP_LISTEN")]
+    #[serde(rename = "HTTP_LISTEN")]
     pub http_listen_addr: String,
 
     /// Address for the TCP proxy server (e.g., "0.0.0.0:8888")
-    #[serde(rename = "SIDECAR_TCP_LISTEN")]
+    #[serde(rename = "TCP_LISTEN")]
     pub tcp_listen_addr: String,
 
     /// Upstream target TCP address (e.g., "127.0.0.1:9000")
-    #[serde(rename = "SIDECAR_TARGET_TCP")]
+    #[serde(rename = "TARGET_TCP")]
     pub target_tcp_addr: Option<String>,
 
     /// Upstream target Unix Domain Socket path (e.g., "/var/run/app.sock")
-    #[serde(rename = "SIDECAR_TARGET_UDS")]
+    #[serde(rename = "TARGET_UDS")]
     pub target_uds_path: Option<String>,
 }
 
@@ -29,6 +29,12 @@ impl Config {
             _ => Ok(()),
         }
     }
+
+    /// Loads configuration from environment variables.
+    pub fn from_env() -> Result<Self, envy::Error> {
+        envy::prefixed("SIDECAR_").from_env::<Config>()
+    }
+
 }
 
 impl fmt::Display for Config {
