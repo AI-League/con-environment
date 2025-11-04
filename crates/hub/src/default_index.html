@@ -5,115 +5,207 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Workshop Login</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            display: grid;
-            place-items: center;
-            min-height: 90vh;
-            background-color: #f4f7f6;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
         }
-        form {
-            background: #ffffff;
-            border: 1px solid #d1d1d1;
-            border-radius: 8px;
-            padding: 2rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+
+        .login-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
         }
+
         h1 {
-            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
             text-align: center;
-            margin-top: 0;
         }
-        div {
-            margin-bottom: 1rem;
+
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
         }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
         label {
             display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
         }
-        input[type="text"] {
-            width: 300px;
-            padding: 0.75rem;
-            font-size: 1rem;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
         }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
         button {
             width: 100%;
-            padding: 0.75rem;
-            font-size: 1rem;
-            font-weight: 600;
-            border: none;
-            border-radius: 4px;
-            background-color: #007aff;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
+
         button:hover {
-            background-color: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
         }
-        #error-msg {
-            color: red;
-            margin-top: 1rem;
-            text-align: center;
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .info {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
         }
     </style>
 </head>
 <body>
-    <form id="login-form">
-        <h1>Workshop Hub Login</h1>
-        <div>
-            <label for="username">Username</label>
-            <input type="text" id="username" name="username" required>
+    <div class="login-container">
+        <h1>Workshop Login</h1>
+        <p class="subtitle">Enter your username to access your workshop</p>
+        
+        <div class="info">
+            Each user gets their own isolated workshop environment. Just enter a username to get started!
         </div>
-        <button type="submit">Login</button>
-        <p id="error-msg" aria-live="assertive"></p>
-    </form>
+
+        <div id="error" class="error"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    name="username" 
+                    placeholder="Enter your username"
+                    required
+                    autocomplete="username"
+                    pattern="[a-zA-Z0-9_-]+"
+                    title="Only letters, numbers, hyphens, and underscores allowed"
+                >
+            </div>
+
+            <button type="submit" id="submitBtn">
+                Access Workshop
+            </button>
+        </form>
+    </div>
 
     <script>
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
+        const form = document.getElementById('loginForm');
+        const errorDiv = document.getElementById('error');
+        const submitBtn = document.getElementById('submitBtn');
+
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const errorMsg = document.getElementById('error-msg');
-            const username = document.getElementById('username').value;
-            errorMsg.textContent = '';
+            
+            const username = document.getElementById('username').value.trim();
+            
+            if (!username) {
+                showError('Please enter a username');
+                return;
+            }
+
+            // Disable submit button
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Logging in...';
 
             try {
-                // 1. Send the username to the /login endpoint
                 const response = await fetch('/login', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ username })
                 });
 
-                if (!response.ok) {
-                    throw new Error('Login failed. Please try again.');
-                }
-
                 const data = await response.json();
 
-                // 2. Save the token and redirect
-                if (data.token) {
-                    localStorage.setItem('workshop-token', data.token);
-                    
-                    // Redirect to the default workshop path.
-                    // This uses the default name "workshop" from config.rs
-                    const workshopName = "workshop";
-                    
-                    // Redirect to the root of the workshop.
-                    // The auth middleware will handle the token from localStorage
-                    // for subsequent requests (like WebSocket upgrades).
-                    window.location.href = `/${workshopName}/`;
+                if (data.success) {
+                    // Redirect to workshop
+                    window.location.href = data.redirect || '/workshop';
                 } else {
-                    throw new Error('No token received from server.');
+                    showError(data.message || 'Login failed');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Access Workshop';
                 }
-
-            } catch (err) {
-                errorMsg.textContent = err.message;
+            } catch (error) {
+                showError('Network error. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Access Workshop';
             }
         });
+
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+            setTimeout(() => {
+                errorDiv.classList.remove('show');
+            }, 5000);
+        }
     </script>
 </body>
 </html>

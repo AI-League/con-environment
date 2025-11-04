@@ -1,51 +1,55 @@
-use crate::{auth, get_user_id_from_claims, orchestrator, AppState, HubError};
+use crate::{AppState, HubError, auth::UserIdentity, orchestrator};
 use axum::{
-    Extension, body::Body, extract::{Path, State}, http::{Request, StatusCode, Uri}, response::{Html, IntoResponse, Response}
+    Extension, body::Body, extract::{Path, State}, http::{Request, StatusCode, Uri}, response::{IntoResponse, Response}
 };
 use http_body_util::BodyExt;
 //use tokio_util::io::ReaderStream;
 use tracing::{info, debug, warn};
 
-/// Axum handler that performs auth and proxies HTTP requests.
 #[axum::debug_handler]
-pub async fn http_gateway_handler(
+pub async fn workshop_index_handler(
     State(state): State<AppState>,
-    Path(path): Path<Option<String>>,
-    Extension(claims): Extension<Option<auth::Claims>>,
+    Extension(claims): Extension<UserIdentity>,
     request: Request<Body>,
 ) -> Result<Response, StatusCode> {
-    if claims.is_none() {
-        
-    }
-    let user_id = match claims {
-        Some(claims) => {
-            let user = get_user_id_from_claims(&claims);
-            debug!(user, "Authorized");
-            user
-        }
-        None => {
+    http_handler(state, None, claims, request).await
+}
 
-            return Ok(Html(include_str!("default_index.html")).into_response());
-        }
-    };
-    info!("HTTP: Auth successful for user {}", user_id);
+/// Axum handler that performs auth and proxies HTTP requests.
+#[axum::debug_handler]
+pub async fn workshop_other_handler(
+    State(state): State<AppState>,
+    Path(path): Path<String>,
+    Extension(claims): Extension<UserIdentity>,
+    request: Request<Body>,
+) -> Result<Response, StatusCode> {
+    http_handler(state, Some(path), claims, request).await
+}
+
+pub async fn http_handler(
+    state: AppState,
+    path: Option<String>,
+    user_id: UserIdentity,
+    request: Request<Body>,
+) -> Result<Response, StatusCode> {
+    info!("HTTP: Auth successful for user {}", user_id.user_id);
 
     // 2. Get or Create Pod
     let config = state.config.clone();
     let binding = match orchestrator::get_or_create_pod(
         &state.kube_client,
-        &user_id,
+        &user_id.user_id,
         config, // <-- Pass the whole config Arc
     )
     .await
     {
         Ok(binding) => binding,
         Err(HubError::PodLimitReached) => {
-            warn!("HTTP: Pod limit reached. Denying user {}.", user_id);
+            warn!("HTTP: Pod limit reached. Denying user {}.", user_id.user_id);
             return Err(StatusCode::SERVICE_UNAVAILABLE);
         }
         Err(e) => {
-            warn!("HTTP: Failed to get/create pod for {}: {}", user_id, e);
+            warn!("HTTP: Failed to get/create pod for {}: {}", user_id.user_id, e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
