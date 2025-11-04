@@ -1,0 +1,171 @@
+input,target
+"A: The waypoint's in DMS: 55°14'27""N 6°30'42""W.
+B: Copy that.","55.24080, -6.51160"
+"A: Meet where we watched the New Year’s fireworks—Big Ben by Westminster.
+B: Same spot.",Big Ben
+"A: Coordinates (deg dec min): 51 30.042 N, 0 07.476 W near Big Ben.","51.50070, -0.12460"
+"A: The waypoint's in DMS: 52°12'19""N 0°07'18""E.
+B: Copy that.","52.20530, 0.12180"
+"A: Adding waypoint lon/lat: lon -1.61780, lat 54.97830 near Newcastle upon Tyne.","54.97830, -1.61780"
+"A: Meet at Oxford.
+B: Actually no, Big Ben is better—closer for everyone.
+A: True.",Big Ben
+"A: The castle.
+B: Which one?
+A: Manchester Piccadilly.
+B: Ah, okay.",Manchester Piccadilly
+"A: Adding waypoint lon/lat: lon 2.29450, lat 48.85840 near Eiffel Tower.","48.85840, 2.29450"
+"A: Drop a pin at 50.7167°N, 1.8756°W – it's basically Bournemouth Pier.","50.71670, -1.87560"
+"A: Meet at Oxford.
+B: Actually no, Dover Cliffs (White Cliffs) is better—closer for everyone.
+A: True.",Dover Cliffs (White Cliffs)
+"A: Adding waypoint lon/lat: lon -6.51160, lat 55.24080 near Giant's Causeway.","55.24080, -6.51160"
+"A: Head to the pier by the old amusements—yeah, Oxford, UK.
+B: On my way.","Oxford, UK"
+"A: Pin this spot: 51.12900, 1.32100 near Dover Cliffs (White Cliffs).
+B: Saved.","51.12900, 1.32100"
+"A: Adding waypoint lon/lat: lon 2.29450, lat 48.85840 near Eiffel Tower.","48.85840, 2.29450"
+"A: Pin this spot: lon=-1.82620 , lat=51.17890 near Stonehenge.
+B: Saved.","51.17890, -1.82620"
+"A: Coordinates (deg dec min): 40 41.352 N, 74 02.670 W near Statue of Liberty.","40.68920, -74.04450"
+"A: Pin this spot: 53.40020 , -2.97300 near Liverpool Cathedral.
+B: Saved.","53.40020, -2.97300"
+"A: Pin this spot: 55.94860 , -3.19990 near Edinburgh Castle.
+B: Saved.","55.94860, -3.19990"
+"A: Head to the pier by the old amusements—yeah, Belfast City Hall.
+B: On my way.",Belfast City Hall
+"A: We could do Cambridge, York, or Clifton Suspension Bridge.
+B: Let's lock Clifton Suspension Bridge.",Clifton Suspension Bridge
+"A: We could do Cambridge, York, or Dover Cliffs (White Cliffs).
+B: Let's lock Dover Cliffs (White Cliffs).",Dover Cliffs (White Cliffs)
+"A: Adding waypoint lon/lat: lon -3.18100, lat 51.48100 near Cardiff Castle.","51.48100, -3.18100"
+"A: The castle.
+B: Which one?
+A: Belfast City Hall.
+B: Ah, okay.",Belfast City Hall
+"A: The booking code is 743291. Anyway, take the train to Cardiff Castle and text me.
+B: Got it.",Cardiff Castle
+"A: Head to the pier by the old amusements—yeah, Bournemouth Pier.
+B: On my way.",Bournemouth Pier
+"A: Drop a pin at 57.3229°N, 4.4244°W – it's basically Loch Ness.","57.32290, -4.42440"
+"A: The castle.
+B: Which one?
+A: Belfast City Hall.
+B: Ah, okay.",Belfast City Hall
+"A: The waypoint's in DMS: 57°24'45""N 6°11'37""W.
+B: Copy that.","57.41250, -6.19360"
+"A: At Brighton Palace Pier around 7pm; ignore the 51% sale and code 2025, it's irrelevant.",Brighton Palace Pier
+"A: Pin this spot: 51.27980  ,  1.08370 near Canterbury Cathedral.
+B: Saved.","51.27980, 1.08370"
+"A: Drop a pin at 51.2798°N, 1.0837°E – it's basically Canterbury Cathedral.","51.27980, 1.08370"
+"A: The bridge over the Avon gorge—Clifton Suspension Bridge.
+B: Got it.",Clifton Suspension Bridge
+"A: Pin this spot: 51.48390 , -0.60440 near Windsor Castle.
+B: Saved.","51.48390, -0.60440"
+"A: The waypoint's in DMS: 50°12'40""N 5°28'52""W.
+B: Copy that.","50.21100, -5.48100"
+"A: At St Ives Harbour around 7pm; ignore the 51% sale and code 2025, it's irrelevant.",St Ives Harbour
+"A: Pin this spot: 51.48390 , -0.60440 near Windsor Castle.
+B: Saved.","51.48390, -0.60440"
+"A: The booking code is 743291. Anyway, take the train to Stonehenge and text me.
+B: Got it.",Stonehenge
+"A: Head to the pier by the old amusements—yeah, Bath Abbey.
+B: On my way.",Bath Abbey
+"A: Pin this spot: 53.38580, -1.87750 near Peak District (Kinder Scout).
+B: Saved.","53.38580, -1.87750"
+"A: Where should we meet?
+B: Let's do Bath Abbey.
+A: Perfect, see you there.",Bath Abbey
+"A: Adding waypoint lon/lat: lon -4.42440, lat 57.32290 near Loch Ness.","57.32290, -4.42440"
+"A: Pin this spot: 53.40020,-2.97300 near Liverpool Cathedral.
+B: Saved.","53.40020, -2.97300"
+"A: Coordinates (deg dec min): 40 41.352 N, 74 02.670 W near Statue of Liberty.","40.68920, -74.04450"
+"A: The booking code is 743291. Anyway, take the train to Brighton Palace Pier and text me.
+B: Got it.",Brighton Palace Pier
+"A: Drop a pin at 55.9486°N, 3.1999°W – it's basically Edinburgh Castle.","55.94860, -3.19990"
+"A: The waypoint's in DMS: 53°24'01""N 2°58'23""W.
+B: Copy that.","53.40020, -2.97300"
+"A: Meet at Oxford.
+B: Actually no, Oxford, UK is better—closer for everyone.
+A: True.","Oxford, UK"
+"A: The castle.
+B: Which one?
+A: Manchester Piccadilly.
+B: Ah, okay.",Manchester Piccadilly
+"A: The booking code is 743291. Anyway, take the train to Manchester Piccadilly and text me.
+B: Got it.",Manchester Piccadilly
+"A: The booking code is 743291. Anyway, take the train to Isle of Skye (Portree) and text me.
+B: Got it.",Isle of Skye (Portree)
+"A: The castle.
+B: Which one?
+A: Peak District (Kinder Scout).
+B: Ah, okay.",Peak District (Kinder Scout)
+"A: Where should we meet?
+B: Let's do Loch Ness.
+A: Perfect, see you there.",Loch Ness
+"A: Where should we meet?
+B: Let's do Windsor Castle.
+A: Perfect, see you there.",Windsor Castle
+"A: The booking code is 743291. Anyway, take the train to Clifton Suspension Bridge and text me.
+B: Got it.",Clifton Suspension Bridge
+"A: Adding waypoint lon/lat: lon 0.12180, lat 52.20530 near Cambridge, UK.","52.20530, 0.12180"
+"A: At York Minster around 7pm; ignore the 51% sale and code 2025, it's irrelevant.",York Minster
+"A: Adding waypoint lon/lat: lon -0.12460, lat 51.50070 near Big Ben.","51.50070, -0.12460"
+"A: Pin this spot: lon=-3.21150,lat=54.45410 near Scafell Pike.
+B: Saved.","54.45410, -3.21150"
+"A: The booking code is 743291. Anyway, take the train to Bath Abbey and text me.
+B: Got it.",Bath Abbey
+"A: Head to the pier by the old amusements—yeah, Cardiff Castle.
+B: On my way.",Cardiff Castle
+"A: The booking code is 743291. Anyway, take the train to Snowdon (Yr Wyddfa) and text me.
+B: Got it.",Snowdon (Yr Wyddfa)
+"A: Drop a pin at 53.0685°N, 4.0761°W – it's basically Snowdon (Yr Wyddfa).","53.06850, -4.07610"
+"A: Coordinates (deg dec min): 54 27.246 N, 3 12.690 W near Scafell Pike.","54.45410, -3.21150"
+"A: At Brighton Palace Pier around 7pm; ignore the 51% sale and code 2025, it's irrelevant.",Brighton Palace Pier
+"A: The waypoint's in DMS: 33°51'24""S 151°12'55""E.
+B: Copy that.","-33.85680, 151.21530"
+"A: We could do Cambridge, York, or Bournemouth Pier.
+B: Let's lock Bournemouth Pier.",Bournemouth Pier
+"A: Adding waypoint lon/lat: lon 0.12180, lat 52.20530 near Cambridge, UK.","52.20530, 0.12180"
+"A: At St Ives Harbour around 7pm; ignore the 51% sale and code 2025, it's irrelevant.",St Ives Harbour
+"A: The booking code is 743291. Anyway, take the train to Scafell Pike and text me.
+B: Got it.",Scafell Pike
+"A: We could do Cambridge, York, or Statue of Liberty.
+B: Let's lock Statue of Liberty.",Statue of Liberty
+"A: That famous loch with the monster—Loch Ness.
+B: Lol, on it.",Loch Ness
+"A: The castle.
+B: Which one?
+A: York Minster.
+B: Ah, okay.",York Minster
+"A: Where should we meet?
+B: Let's do Edinburgh Castle.
+A: Perfect, see you there.",Edinburgh Castle
+"A: Pin this spot: 53.96240,-1.08190 near York Minster.
+B: Saved.","53.96240, -1.08190"
+"A: Meet at Oxford.
+B: Actually no, Sydney Opera House is better—closer for everyone.
+A: True.",Sydney Opera House
+"A: Pin this spot: lon=-6.19360, lat=57.41250 near Isle of Skye (Portree).
+B: Saved.","57.41250, -6.19360"
+"A: The waypoint's in DMS: 53°04'07""N 4°04'34""W.
+B: Copy that.","53.06850, -4.07610"
+"A: Where should we meet?
+B: Let's do Oxford, UK.
+A: Perfect, see you there.","Oxford, UK"
+"A: Drop a pin at 48.8584°N, 2.2945°E – it's basically Eiffel Tower.","48.85840, 2.29450"
+"A: At Peak District (Kinder Scout) around 7pm; ignore the 51% sale and code 2025, it's irrelevant.",Peak District (Kinder Scout)
+"A: Coordinates (deg dec min): 55 14.448 N, 6 30.696 W near Giant's Causeway.","55.24080, -6.51160"
+"A: Where should we meet?
+B: Let's do Newcastle upon Tyne.
+A: Perfect, see you there.",Newcastle upon Tyne
+"A: Coordinates (deg dec min): 51 16.788 N, 1 05.022 E near Canterbury Cathedral.","51.27980, 1.08370"
+"A: Coordinates (deg dec min): 51 10.734 N, 1 49.572 W near Stonehenge.","51.17890, -1.82620"
+"A: Meet at Oxford.
+B: Actually no, Sydney Opera House is better—closer for everyone.
+A: True.",Sydney Opera House
+"A: Where should we meet?
+B: Let's do Newcastle upon Tyne.
+A: Perfect, see you there.",Newcastle upon Tyne
+"A: Head to the pier by the old amusements—yeah, Clifton Suspension Bridge.
+B: On my way.",Clifton Suspension Bridge
