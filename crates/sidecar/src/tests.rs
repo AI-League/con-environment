@@ -42,10 +42,10 @@ async fn test_sidecar_end_to_end() {
 
     // Step 2: Configure sidecar directly (not using envy in tests)
     let config = Config {
-        http_listen_addr: "127.0.0.1:18080".to_string(),
-        tcp_listen_addr: "127.0.0.1:18888".to_string(),
-        target_tcp_addr: Some(format!("127.0.0.1:{}", upstream_port)),
-        target_uds_path: None,
+        http_listen: "127.0.0.1:18080".to_string(),
+        tcp_listen: "127.0.0.1:18888".to_string(),
+        target_tcp: Some(format!("127.0.0.1:{}", upstream_port)),
+        target_uds: None,
     };
 
     assert!(config.validate().is_ok(), "Config should be valid");
@@ -222,10 +222,10 @@ async fn test_sidecar_with_no_activity() {
     sleep(Duration::from_millis(100)).await;
 
     let config = Config {
-        http_listen_addr: "127.0.0.1:18081".to_string(),
-        tcp_listen_addr: "127.0.0.1:18889".to_string(),
-        target_tcp_addr: Some(format!("127.0.0.1:{}", upstream_port)),
-        target_uds_path: None,
+        http_listen: "127.0.0.1:18081".to_string(),
+        tcp_listen: "127.0.0.1:18889".to_string(),
+        target_tcp: Some(format!("127.0.0.1:{}", upstream_port)),
+        target_uds: None,
     };
 
     let config = Arc::new(config);

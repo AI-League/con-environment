@@ -1,7 +1,6 @@
 use k8s_openapi::api::core::v1::{Pod, Service, Namespace};
 use kube::{api::{DeleteParams, PostParams, ListParams}, Api, Client};
 use serde_json::json;
-use uuid::Uuid;
 use std::sync::Arc;
 use std::collections::BTreeMap;
 use std::time::Duration;
@@ -79,8 +78,7 @@ impl TestContext {
         // Make workshop_name unique to this namespace
         config_clone.workshop_name = format!("{}-test", config_clone.workshop_name);
         let config = Arc::new(config_clone);
-        
-        let auth_keys = Arc::new(auth::AuthKeys::new(b"test-secret-key"));
+    
         
         let http_client = hyper_util::client::legacy::Client::builder(
             hyper_util::rt::TokioExecutor::new()
@@ -88,7 +86,6 @@ impl TestContext {
         
         let state = AppState {
             kube_client: client.clone(),
-            auth_keys,
             http_client,
             config: config.clone(),
         };
@@ -118,7 +115,6 @@ impl TestContext {
         
         let claims = auth::Claims {
             sub: username.to_string(),
-            id: Uuid::new_v4(),
             exp: (now + 3600) as usize,
             iat: now as usize,
         };

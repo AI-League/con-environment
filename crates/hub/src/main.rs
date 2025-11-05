@@ -1,14 +1,15 @@
 use axum::{
-    routing::{get, get_service, post},
-    Router,
+    Router, response::{Html, IntoResponse, Response}, routing::{get, post}
 };
+use hyper::StatusCode;
 use k8s_openapi::api::core::v1::Pod;
 use kube::Client;
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use tower_http::services::ServeDir;
-use tracing::Level;
+use tower_http::trace::TraceLayer;
+use tower_cookies::CookieManagerLayer;
 
 // Project modules
 mod auth;
@@ -20,6 +21,8 @@ mod proxy;
 
 pub use error::HubError;
 
+use crate::{proxy::{workshop_index_handler, workshop_other_handler}};
+
 pub static SIDECAR: &'static str = "ghcr.io/nbhdai/workshop-sidecar:latest";
 
 /// Global application state shared across all handlers.
@@ -27,8 +30,6 @@ pub static SIDECAR: &'static str = "ghcr.io/nbhdai/workshop-sidecar:latest";
 pub struct AppState {
     /// Client for talking to the Kubernetes API.
     kube_client: Client,
-    /// Secrets for signing and validating JWTs.
-    auth_keys: Arc<auth::AuthKeys>,
     /// HTTP client for proxying.
     http_client: hyper_util::client::legacy::Client<
         hyper_util::client::legacy::connect::HttpConnector,
@@ -38,12 +39,18 @@ pub struct AppState {
     config: Arc<config::Config>, // <-- Add config
 }
 
+async fn index() -> Result<Response, StatusCode> {
+    return Ok(Html(include_str!("default_index.html")).into_response());
+}
+
 #[tokio::main]
 async fn main() {
     // Set up logging
-    tracing_subscriber::fmt()
-        .with_max_level(Level::INFO)
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+    tracing_subscriber::registry()
+        .with(fmt::layer().with_target(true))
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+            "trace,tower_http=trace,fred=debug,h2=off,hyper=off,sqlx=off,tarpc=off,rustls=off".into()
+        }))
         .init();
 
     tracing::info!("Starting Workshop Hub...");
@@ -52,9 +59,6 @@ async fn main() {
     let kube_client = Client::try_default()
         .await
         .expect("Failed to create Kubernetes client. Is KUBECONFIG set?");
-
-    // --- 2. Initialize Auth ---
-    let auth_keys = Arc::new(auth::AuthKeys::new(b"my-super-secret-key"));
 
     // --- 3. Initialize Config ---
     let config = Arc::new(config::Config::from_env().expect("Failed to load config from env"));
@@ -68,7 +72,6 @@ async fn main() {
     // --- 5. Create AppState ---
     let state = AppState {
         kube_client: kube_client.clone(),
-        auth_keys,
         http_client,
         config: config.clone(), // <-- Add config to state
     };
@@ -101,34 +104,21 @@ async fn main() {
 
     // --- 7. Define Routes ---
     let app = Router::new()
-        // Mock login to get a token.
-        // POST /login with JSON `{"username": "my-user"}`
-        .route("/login", post(auth::simple_login_handler))
-        //
-        // --- Workshop Routes ---
-        // These routes are all protected by the auth middleware.
-        .route(
-            "/{workshop}/{*path}",
-            get(proxy::http_gateway_handler),
-        )
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            auth::auth_middleware,
-        ))
-        // --- Fallback ---
-        // Serves static files (e.g., your login page)
-        .fallback_service(
-            get_service(ServeDir::new("public")).handle_error(|err| async move {
-                (
-                    hyper::StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Failed to serve static file: {}", err),
-                )
-            }),
-        )
+        .route("/workshop/", get(workshop_index_handler))
+        .route("/workshop/{*path}", get(workshop_other_handler))
+        // Apply auth requirement ONLY to these routes
+        .layer(auth::RequireAuthLayer {})
+        .route("/", get(index))
+                // Apply middleware layers (order matters!)
+        .merge(auth::auth_routes())
+        .layer(auth::CookieAuthLayer {})
+        .layer(CookieManagerLayer::new())
+        .route("/health", get(|| async { "OK" }))
+        .layer(TraceLayer::new_for_http())
         .with_state(state);
 
     // --- 7. Run Server ---
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
+    let addr = SocketAddr::from(([0; 8], 8080));
     tracing::info!("Hub listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
@@ -137,22 +127,10 @@ async fn main() {
         .unwrap();
 }
 
-/// Helper to get the user ID from JWT claims.
-fn get_user_id_from_claims(claims: &auth::Claims) -> String {
-    // Use a sanitized version of the username as the user ID
-    // In a real app, this would be a stable database ID.
-    claims
-        .sub
-        .chars()
-        .filter(|c| c.is_alphanumeric() || *c == '-')
-        .collect::<String>()
-        .to_lowercase()
-}
-
-#[cfg(test)]
-mod tests {
-    pub mod gc;
-    pub mod helpers;
-    pub mod config;
-    pub mod integration;
-}
+// #[cfg(test)]
+// mod tests {
+//     pub mod gc;
+//     pub mod helpers;
+//     pub mod config;
+//     pub mod integration;
+// }

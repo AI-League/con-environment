@@ -115,8 +115,8 @@ impl<S: AsyncWrite> AsyncWrite for ActivityStream<S> {
 
 /// Main TCP proxy loop. Listens for connections and spawns a task for each.
 pub async fn run_proxy(state: Arc<AppState>, config: Arc<Config>) -> io::Result<()> {
-    let listener = TcpListener::bind(&config.tcp_listen_addr).await?;
-    info!("TCP Proxy listening on {}", &config.tcp_listen_addr);
+    let listener = TcpListener::bind(&config.tcp_listen).await?;
+    info!("TCP Proxy listening on {}", &config.tcp_listen);
 
     loop {
         match listener.accept().await {
@@ -149,11 +149,11 @@ pub async fn run_proxy(state: Arc<AppState>, config: Arc<Config>) -> io::Result<
 
 /// Connects to the configured upstream (TCP or UDS).
 async fn connect_upstream(config: &Config) -> io::Result<UpstreamStream> {
-    if let Some(tcp_addr) = &config.target_tcp_addr {
+    if let Some(tcp_addr) = &config.target_tcp {
         let stream = TcpStream::connect(tcp_addr).await?;
         info!("Connected to upstream TCP: {}", tcp_addr);
         Ok(UpstreamStream::Tcp(stream))
-    } else if let Some(uds_path) = &config.target_uds_path {
+    } else if let Some(uds_path) = &config.target_uds {
         let stream = UnixStream::connect(uds_path).await?;
         info!("Connected to upstream UDS: {}", uds_path);
         Ok(UpstreamStream::Uds(stream))
@@ -196,10 +196,10 @@ mod tests {
     // Helper to create a test config with TCP target
     fn test_config_tcp(target_addr: String) -> Config {
         Config {
-            http_listen_addr: "127.0.0.1:0".to_string(), // Not used in proxy tests
-            tcp_listen_addr: "127.0.0.1:0".to_string(),
-            target_tcp_addr: Some(target_addr),
-            target_uds_path: None,
+            http_listen: "127.0.0.1:0".to_string(), // Not used in proxy tests
+            tcp_listen: "127.0.0.1:0".to_string(),
+            target_tcp: Some(target_addr),
+            target_uds: None,
         }
     }
 
@@ -246,7 +246,7 @@ mod tests {
         let config = Arc::new(test_config_tcp(upstream_addr.to_string()));
         let state = test_state();
 
-        let proxy_listener = TcpListener::bind(&config.tcp_listen_addr).await.unwrap();
+        let proxy_listener = TcpListener::bind(&config.tcp_listen).await.unwrap();
         let proxy_addr = proxy_listener.local_addr().unwrap();
 
         // Spawn proxy server
@@ -295,7 +295,7 @@ mod tests {
 
         let initial_activity = state.get_last_activity();
 
-        let proxy_listener = TcpListener::bind(&config.tcp_listen_addr).await.unwrap();
+        let proxy_listener = TcpListener::bind(&config.tcp_listen).await.unwrap();
         let proxy_addr = proxy_listener.local_addr().unwrap();
 
         let config_clone = config.clone();
@@ -347,7 +347,7 @@ mod tests {
         let config = Arc::new(test_config_tcp(upstream_addr.to_string()));
         let state = test_state();
 
-        let proxy_listener = TcpListener::bind(&config.tcp_listen_addr).await.unwrap();
+        let proxy_listener = TcpListener::bind(&config.tcp_listen).await.unwrap();
         let proxy_addr = proxy_listener.local_addr().unwrap();
 
         let config_clone = config.clone();
@@ -387,7 +387,7 @@ mod tests {
         let config = Arc::new(test_config_tcp("127.0.0.1:1".to_string())); // Port 1 should be unavailable
         let state = test_state();
 
-        let proxy_listener = TcpListener::bind(&config.tcp_listen_addr).await.unwrap();
+        let proxy_listener = TcpListener::bind(&config.tcp_listen).await.unwrap();
         let proxy_addr = proxy_listener.local_addr().unwrap();
 
         let config_clone = config.clone();
@@ -433,7 +433,7 @@ mod tests {
         let config = Arc::new(test_config_tcp(upstream_addr.to_string()));
         let state = test_state();
 
-        let proxy_listener = TcpListener::bind(&config.tcp_listen_addr).await.unwrap();
+        let proxy_listener = TcpListener::bind(&config.tcp_listen).await.unwrap();
         let proxy_addr = proxy_listener.local_addr().unwrap();
 
         let config_clone = config.clone();
@@ -473,7 +473,7 @@ mod tests {
         let config = Arc::new(test_config_tcp(upstream_addr.to_string()));
         let state = test_state();
 
-        let proxy_listener = TcpListener::bind(&config.tcp_listen_addr).await.unwrap();
+        let proxy_listener = TcpListener::bind(&config.tcp_listen).await.unwrap();
         let proxy_addr = proxy_listener.local_addr().unwrap();
 
         let config_clone = config.clone();
@@ -520,7 +520,7 @@ mod tests {
         let config = Arc::new(test_config_tcp(upstream_addr.to_string()));
         let state = test_state();
 
-        let proxy_listener = TcpListener::bind(&config.tcp_listen_addr).await.unwrap();
+        let proxy_listener = TcpListener::bind(&config.tcp_listen).await.unwrap();
         let proxy_addr = proxy_listener.local_addr().unwrap();
 
         let config_clone = config.clone();

@@ -62,6 +62,28 @@ let
       echo "-----------------------------------"
     done
 
+    echo "All flake images pushed successfully!"
+    echo ""
+    
+    # --- Build and push Dockerfile images ---
+    echo "--- Processing image: workshop-inspect-basic ---"
+    
+    INSPECT_LOCAL_TAG="workshop-inspect-basic:latest"
+    INSPECT_REMOTE_TAG="ghcr.io/nbhdai/workshop-inspect-basic:latest"
+    INSPECT_CONTEXT_PATH="$PROJECT_ROOT/workshops/inspect-basic"
+
+    echo "Building $INSPECT_LOCAL_TAG from $INSPECT_CONTEXT_PATH..."
+    docker build -t "$INSPECT_LOCAL_TAG" "$INSPECT_CONTEXT_PATH"
+    
+    echo "Tagging $INSPECT_LOCAL_TAG as $INSPECT_REMOTE_TAG..."
+    docker tag "$INSPECT_LOCAL_TAG" "$INSPECT_REMOTE_TAG"
+    
+    echo "Pushing $INSPECT_REMOTE_TAG..."
+    docker push "$INSPECT_REMOTE_TAG"
+    
+    echo "Successfully pushed $INSPECT_REMOTE_TAG"
+    echo "-----------------------------------"
+
     echo "All images pushed successfully!"
   '';
 

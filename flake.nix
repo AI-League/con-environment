@@ -133,9 +133,6 @@
               name = "workshop-sidecar";
               tag = "latest";
 
-              # 'contents' and 'Env' are no longer needed.
-              # buildImage infers all dependencies from 'Cmd'.
-
               config = {
                 Cmd = [ "${binaries.sidecar-bin}/bin/sidecar" ];
               };

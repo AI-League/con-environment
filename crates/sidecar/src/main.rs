@@ -3,6 +3,7 @@ use std::sync::{
     Arc,
 };
 use std::time::{SystemTime, UNIX_EPOCH};
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 mod config;
 mod http_server;
@@ -52,14 +53,23 @@ fn current_timestamp() -> i64 {
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+    tracing_subscriber::registry()
+        .with(fmt::layer().with_target(true))
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+            "trace,rustls=off".into()
+        }))
         .init();
 
     info!("Starting workshop sidecar...");
 
     // 1. Load configuration
-    let config = match envy::from_env::<Config>() {
+    for (key, value) in std::env::vars() {
+        if key.starts_with("SIDECAR_") {
+            info!("Environment variable: {}={}", key, value);
+        }
+    }
+
+    let config = match Config::from_env() {
         Ok(config) => config,
         Err(e) => {
             error!("Failed to load configuration: {}", e);

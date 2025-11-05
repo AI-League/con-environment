@@ -1,3 +1,4 @@
+use axum::extract::Request;
 use k8s_openapi::api::core::v1::Pod;
 use kube::Api;
 use crate::{auth, orchestrator, HubError};
@@ -89,7 +90,6 @@ fn test_jwt_token_generation_and_validation() {
     // Create test claims
     let claims = auth::Claims {
         sub: "testuser".to_string(),
-        id: uuid::Uuid::new_v4(),
         exp: (chrono::Utc::now().timestamp() + 3600) as usize,
         iat: chrono::Utc::now().timestamp() as usize,
     };
@@ -110,41 +110,38 @@ fn test_jwt_token_generation_and_validation() {
     
     let decoded_claims = decoded.unwrap().claims;
     assert_eq!(decoded_claims.sub, "testuser");
-    assert_eq!(decoded_claims.id, claims.id);
 }
 
 #[test]
-fn test_extract_token_from_headers() {
-    use axum::http::HeaderMap;
+fn test_extract_token_from_request() {
+    // Test 1: Extract from "Authorization: Bearer" header
+    let req_header = Request::builder()
+        .header("authorization", "Bearer test-token-123")
+        .body(())
+        .unwrap();
     
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        "authorization",
-        "Bearer test-token-123".parse().unwrap()
-    );
-    
-    let token = auth::extract_token_from_headers(&headers);
-    assert!(token.is_ok(), "Should extract token from header");
-    assert_eq!(token.unwrap(), "test-token-123");
-    
-    // Test missing header
-    let empty_headers = HeaderMap::new();
-    let no_token = auth::extract_token_from_headers(&empty_headers);
-    assert!(no_token.is_err(), "Should fail with no authorization header");
-}
+    let token_header = auth::extract_token_from_request(&req_header);
+    assert!(token_header.is_ok(), "Should extract token from header");
+    assert_eq!(token_header.unwrap(), "test-token-123");
 
-#[test]
-fn test_extract_token_from_query() {
-    // Test with token present
-    let query = "token=test-token-456&other=value";
-    let token = auth::extract_token_from_query(query);
-    assert!(token.is_ok(), "Should extract token from query");
-    assert_eq!(token.unwrap(), "test-token-456");
+    // Test 2: Extract from query parameter
+    let req_query = Request::builder()
+        .uri("/path?token=test-token-456&other=value")
+        .body(())
+        .unwrap();
     
-    // Test with missing token
-    let query_no_token = "other=value&foo=bar";
-    let no_token = auth::extract_token_from_query(query_no_token);
-    assert!(no_token.is_err(), "Should fail with no token in query");
+    let token_query = auth::extract_token_from_request(&req_query);
+    assert!(token_query.is_ok(), "Should extract token from query");
+    assert_eq!(token_query.unwrap(), "test-token-456");
+
+    // Test 3: Missing token
+    let req_missing = Request::builder()
+        .uri("/path?other=value")
+        .body(())
+        .unwrap();
+
+    let no_token = auth::extract_token_from_request(&req_missing);
+    assert!(no_token.is_err(), "Should fail with no token");
 }
 
 #[tracing_test::traced_test]
