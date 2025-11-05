@@ -169,7 +169,7 @@ fn create_workshop_pod_spec(
                 {
                     "name": "workshop",
                     "image": config.workshop_image, // <-- Configurable
-                    "imagePullPolicy": "IfNotPresent",
+                    "imagePullPolicy": "Always",
                     "ports": [{"containerPort": config.workshop_port}], // <-- Configurable
                     "resources": {
                         "requests": {

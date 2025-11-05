@@ -8,7 +8,8 @@ let
     targets.wasm32-unknown-unknown.stable.rust-std
   ];
 
-  uploadScript = pkgs.writeShellScriptBin "upload-to-ghcr" ''
+  # Common preamble for all scripts
+  scriptPreamble = ''
     #!/usr/bin/env bash
     set -euo pipefail # Exit on error, unset variables, and pipe failures
     
@@ -22,50 +23,72 @@ let
       echo "Error: PROJECT_ROOT is not set. Are you in the dev shell?"
       exit 1
     fi
+  '';
+
+  # --- Script 1: Upload workshop-sidecar (Nix build) ---
+  uploadSidecarScript = pkgs.writeShellScriptBin "upload-workshop-sidecar" ''
+    ${scriptPreamble}
     
-    # Use GITHUB_USERNAME as the GHCR owner.
-    # If pushing to an org, you might want to change this.
-
-    # Define images to build and push from the flake
-    # Format: "nix-package-name docker-image-name"
-    declare -a images=(
-      "workshop-sidecar workshop-sidecar"
-      "workshop-hub workshop-hub"
-    )
-
-    # Build, load, tag, and push each image
-    for img_pair in "''${images[@]}"; do
-      read -r nix_pkg docker_name <<< "$img_pair"
-      
-      local_tag="''${docker_name}:latest"
-      remote_tag="ghcr.io/nbhdai/''${docker_name}:latest"
-      result_link="result-''${nix_pkg}" # Unique out-link for the build
-
-      echo "--- Processing image: ''${docker_name} ---"
-      
-      echo "Building ''${nix_pkg}..."
-      # Build from the project root, as defined by the shellHook
-      nix build "''${PROJECT_ROOT}#''${nix_pkg}" --out-link "''${result_link}"
-      
-      echo "Loading ''${local_tag} into Docker..."
-      docker load < "''${result_link}"
-      
-      echo "Tagging ''${local_tag} as ''${remote_tag}..."
-      docker tag "''${local_tag}" "''${remote_tag}"
-      
-      echo "Pushing ''${remote_tag}..."
-      docker push "''${remote_tag}"
-      
-      # Clean up the result link
-      rm "''${result_link}"
-      echo "Successfully pushed ''${remote_tag}"
-      echo "-----------------------------------"
-    done
-
-    echo "All flake images pushed successfully!"
-    echo ""
+    nix_pkg="workshop-sidecar"
+    docker_name="workshop-sidecar"
     
-    # --- Build and push Dockerfile images ---
+    local_tag="''${docker_name}:latest"
+    remote_tag="ghcr.io/nbhdai/''${docker_name}:latest"
+    result_link="result-''${nix_pkg}" # Unique out-link for the build
+
+    echo "--- Processing image: ''${docker_name} ---"
+    
+    echo "Building ''${nix_pkg}..."
+    nix build "''${PROJECT_ROOT}#''${nix_pkg}" --out-link "''${result_link}"
+    
+    echo "Loading ''${local_tag} into Docker..."
+    docker load < "''${result_link}"
+    
+    echo "Tagging ''${local_tag} as ''${remote_tag}..."
+    docker tag "''${local_tag}" "''${remote_tag}"
+    
+    echo "Pushing ''${remote_tag}..."
+    docker push "''${remote_tag}"
+    
+    rm "''${result_link}"
+    echo "Successfully pushed ''${remote_tag}"
+    echo "-----------------------------------"
+  '';
+
+  # --- Script 2: Upload workshop-hub (Nix build) ---
+  uploadHubScript = pkgs.writeShellScriptBin "upload-workshop-hub" ''
+    ${scriptPreamble}
+    
+    nix_pkg="workshop-hub"
+    docker_name="workshop-hub"
+    
+    local_tag="''${docker_name}:latest"
+    remote_tag="ghcr.io/nbhdai/''${docker_name}:latest"
+    result_link="result-''${nix_pkg}"
+
+    echo "--- Processing image: ''${docker_name} ---"
+    
+    echo "Building ''${nix_pkg}..."
+    nix build "''${PROJECT_ROOT}#''${nix_pkg}" --out-link "''${result_link}"
+    
+    echo "Loading ''${local_tag} into Docker..."
+    docker load < "''${result_link}"
+    
+    echo "Tagging ''${local_tag} as ''${remote_tag}..."
+    docker tag "''${local_tag}" "''${remote_tag}"
+    
+    echo "Pushing ''${remote_tag}..."
+    docker push "''${remote_tag}"
+    
+    rm "''${result_link}"
+    echo "Successfully pushed ''${remote_tag}"
+    echo "-----------------------------------"
+  '';
+
+  # --- Script 3: Upload workshop-inspect-basic (Dockerfile build) ---
+  uploadInspectScript = pkgs.writeShellScriptBin "upload-workshop-inspect-basic" ''
+    ${scriptPreamble}
+
     echo "--- Processing image: workshop-inspect-basic ---"
     
     INSPECT_LOCAL_TAG="workshop-inspect-basic:latest"
@@ -83,9 +106,33 @@ let
     
     echo "Successfully pushed $INSPECT_REMOTE_TAG"
     echo "-----------------------------------"
-
-    echo "All images pushed successfully!"
   '';
+
+  # --- Script 4: Complete script to run all 3 ---
+  uploadAllScript = pkgs.writeShellScriptBin "upload-all-images" ''
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    echo "=== 🚀 Starting upload for all images... ==="
+    
+    # These scripts are on the PATH from the dev shell's 'packages'
+    
+    echo ""
+    echo "Running upload-workshop-sidecar..."
+    upload-workshop-sidecar
+    
+    echo ""
+    echo "Running upload-workshop-hub..."
+    upload-workshop-hub
+    
+    echo ""
+    echo "Running upload-workshop-inspect-basic..."
+    upload-workshop-inspect-basic
+    
+    echo ""
+    echo "=== ✅ All images pushed successfully! ==="
+  '';
+
 
   cliTools = with pkgs; [
     curl
@@ -98,7 +145,11 @@ let
     k9s
     cilium-cli
     hubble
-    uploadScript
+    # Replaced uploadScript with the new individual and composite scripts
+    uploadSidecarScript
+    uploadHubScript
+    uploadInspectScript
+    uploadAllScript
   ] ++ [ rustToolchain ];
 in
 {
@@ -201,11 +252,11 @@ in
         };
       };
 
-      cilium-patch."patch0" = {
-        enable = true;
-        values = ../setup/k8/cilium-values.yaml;
-        dataDir = ".data/talos-patches";
-      };
+      # cilium-patch."patch0" = {
+      #   enable = true;
+      #   values = ../setup/k8/cilium-values.yaml;
+      #   dataDir = ".data/talos-patches";
+      # };
 
       talos = {
         cluster = {
@@ -231,7 +282,7 @@ in
           ];
           # This is defined in the .envrc. These can't be paths as they're not checked in.
           configPatches = [
-            ".data/talos-patches/cilium.yaml"
+            #".data/talos-patches/cilium.yaml"
             ".data/talos-patches/ghcr.yaml"
           ];
         };
@@ -271,7 +322,7 @@ in
       k8s.condition = "process_started";
       gcr.condition = "process_started";
       ghcr.condition = "process_started";
-      patch0.condition = "process_completed_successfully";
+      # patch0.condition = "process_completed_successfully";
     };
     settings.processes.storage.depends_on = {
       cluster.condition = "process_log_ready";

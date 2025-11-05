@@ -318,21 +318,21 @@ data:
   hub-namespace: "workshop-hub-system"
   
   # Workshop pod configuration
-  workshop-image: "nginxdemos/hello:latest" # Image from dev-tilt
-  workshop-port: "80"                       # Port from dev-tilt
+  workshop-image: "ghcr.io/nbhdai/workshop-inspect-basic:latest" # Image from dev-tilt
+  workshop-port: "9000"                       # Port from dev-tilt
   workshop-ttl-seconds: "3600"              # TTL from dev-tilt
   workshop-idle-seconds: "600"              # Idle from dev-tilt
   workshop-pod-limit: "10"                  # Limit from dev-tilt
   
   # Resource limits for workshop pods
-  workshop-cpu-request: "50m"
-  workshop-cpu-limit: "200m"
-  workshop-mem-request: "64Mi"
-  workshop-mem-limit: "128Mi"
+  workshop-cpu-request: "1.0"
+  workshop-cpu-limit: "4.0"
+  workshop-mem-request: "4Gi"
+  workshop-mem-limit: "12Gi"
   
   # Sidecar configuration
-  sidecar-image: "workshop-sidecar:dev"
-  sidecar-upstream-port: "80"
+  sidecar-image: "ghcr.io/nbhdai/workshop-sidecar:latest"
+  sidecar-upstream-port: "9000"
   sidecar-proxy-port: "8888"
   sidecar-health-port: "8080"
 ---
