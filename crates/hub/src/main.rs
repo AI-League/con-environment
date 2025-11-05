@@ -108,7 +108,7 @@ async fn main() {
         // --- Workshop Routes ---
         // These routes are all protected by the auth middleware.
         .route(
-            "/:workshop/:user_id/*path",
+            "/{workshop}/{*path}",
             get(proxy::http_gateway_handler),
         )
         .layer(axum::middleware::from_fn_with_state(

@@ -1,5 +1,6 @@
-# Tiltfile - Updated to support integration tests
+# Tiltfile - Using nix-flake for image builds
 load('ext://helm_remote', 'helm_remote')
+load('ext://nix_flake', 'build_flake_image')
 
 allow_k8s_contexts('admin@talos-local')
 hostname = os.getenv("HOSTNAME", "localhost")
@@ -23,37 +24,42 @@ k8s_resource('ai-proxy',
 )
 
 # ============================================================================
-# Workshop Hub - Core System
+# Workshop Hub - Core System (Built with Nix)
 # ============================================================================
 
-# Build Hub and Sidecar images
-docker_build(
+# Build Hub image using nix flake
+build_flake_image(
     'workshop-hub',
-    '.',
-    dockerfile='./crates/hub/Dockerfile',
-    only=[
-        './crates/hub/',
-        './Cargo.toml',
+    '.',  # Path to flake.nix (current directory)
+    'workshop-hub',  # Output name from flake
+    deps=[
+        './crates/hub/src',
+        './crates/hub/Cargo.toml',
         './Cargo.lock',
-    ],
-    live_update=[
-        sync('./crates/hub/src', '/app/crates/hub/src'),
-        run('cd /app && cargo build --release --bin workshop-hub', trigger=['./crates/hub/src']),
     ]
 )
 
-docker_build(
+# Build Sidecar image using nix flake
+build_flake_image(
     'workshop-sidecar',
     '.',
-    dockerfile='./crates/sidecar/Dockerfile',
-    only=[
-        './crates/sidecar/',
-        './Cargo.toml',
+    'workshop-sidecar',
+    deps=[
+        './crates/sidecar/src',
+        './crates/sidecar/Cargo.toml',
         './Cargo.lock',
-    ],
-    live_update=[
-        sync('./crates/sidecar/src', '/app/crates/sidecar/src'),
-        run('cd /app && cargo build --release --bin workshop-sidecar', trigger=['./crates/sidecar/src']),
+    ]
+)
+
+# Build Integration Tests image using nix flake
+build_flake_image(
+    'workshop-integration-tests',
+    '.',
+    'workshop-integration-tests',
+    deps=[
+        './crates/integration-tests/src',
+        './crates/integration-tests/Cargo.toml',
+        './Cargo.lock',
     ]
 )
 
@@ -70,20 +76,8 @@ k8s_resource('workshop-hub',
 # Integration Tests Infrastructure
 # ============================================================================
 
-# Build integration tests image
-docker_build(
-    'workshop-integration-tests',
-    '.',
-    dockerfile='./integration-tests.Dockerfile',
-    only=[
-        './crates/integration-tests/',
-        './Cargo.toml',
-        './Cargo.lock',
-    ],
-)
-
 # Deploy integration tests (as a job that can be retriggered)
-k8s_yaml('./integration-tests-job.yaml')
+k8s_yaml('crates/integration-tests/config.yaml')
 
 # Make the integration tests retriggerable
 k8s_resource('workshop-integration-tests',
@@ -106,32 +100,8 @@ local_resource(
 local_resource(
     'test-logs',
     labels=['tests'],
-    cmd='kubectl logs job/workshop-integration-tests -n default --tail=100',
+    cmd='kubectl logs job/workshop-integration-tests -n default --tail=100 || echo "No logs available yet"',
     resource_deps=['workshop-integration-tests'],
-    trigger_mode=TRIGGER_MODE_MANUAL,
-    auto_init=False,
-)
-
-# ============================================================================
-# Helper Commands
-# ============================================================================
-
-# Quick test command
-local_resource(
-    'quick-test',
-    labels=['dev'],
-    cmd='cargo test --package workshop-hub --lib',
-    deps=['./crates/hub/src'],
-    trigger_mode=TRIGGER_MODE_MANUAL,
-    auto_init=False,
-)
-
-# Build all images
-local_resource(
-    'build-all',
-    labels=['dev'],
-    cmd='cargo build --release',
-    deps=['./crates'],
     trigger_mode=TRIGGER_MODE_MANUAL,
     auto_init=False,
 )
