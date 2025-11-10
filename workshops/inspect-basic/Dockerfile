@@ -40,4 +40,4 @@ COPY --chown=coder:coder ./start.sh /home/coder/start.sh
 
 RUN chmod +x /home/coder/start.sh
 
-CMD ["/home/coder/start.sh"]
+CMD ["code-server", "--bind-addr", "0.0.0.0:8080", "--auth", "none", "/home/coder/workspace"]

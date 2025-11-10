@@ -190,14 +190,14 @@ fn create_workshop_pod_spec(
                     "imagePullPolicy": "Always",
                     "env": [
                         // axum health server
-                        {"name": "SIDECAR_HTTP_LISTEN", "value": "0.0.0.0:8080"},
+                        {"name": "SIDECAR_HTTP_LISTEN", "value": "0.0.0.0:9000"},
                         // pingora proxy
                         {"name": "SIDECAR_TCP_LISTEN", "value": "0.0.0.0:8888"},
                         // Proxy target: the workshop container
-                        {"name": "SIDECAR_TARGET_TCP", "value": format!("127.0.0.1:{}", config.workshop_port)} // <-- Configurable
+                        {"name": "SIDECAR_TARGET_TCP", "value": "127.0.0.1:8080"} // <-- Configurable
                     ],
                     "ports": [
-                        {"name": "health", "containerPort": 8080},
+                        {"name": "health", "containerPort": 9000},
                         {"name": "proxy", "containerPort": 8888}
                     ],
                     "resources": {
@@ -208,10 +208,10 @@ fn create_workshop_pod_spec(
                     "readinessProbe": {
                         "httpGet": {
                             "path": "/health",
-                            "port": 8080,
+                            "port": 9000,
                             "scheme": "HTTP"
                         },
-                        "initialDelaySeconds": 0,
+                        "initialDelaySeconds": 60,
                         "periodSeconds": 10,
                         "timeoutSeconds": 1,
                         "successThreshold": 1,
@@ -221,7 +221,7 @@ fn create_workshop_pod_spec(
                     "livenessProbe": {
                         "httpGet": {
                             "path": "/health",
-                            "port": 8080,
+                            "port": 9000,
                             "scheme": "HTTP"
                         },
                         "initialDelaySeconds": 10,
