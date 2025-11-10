@@ -7,6 +7,7 @@ use axum::{
 use futures_util::future::BoxFuture;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
+use tracing::{debug, info, trace};
 use std::task::{Context, Poll};
 use tower::{Layer, Service};
 use tower_cookies::{Cookie, Cookies};
@@ -51,11 +52,19 @@ async fn handle_login(
     cookies: Cookies,
     Json(login_req): Json<LoginRequest>,
 ) -> impl IntoResponse {
-    tracing::info!(username = %login_req.username, "Login attempt");
+    tracing::info!(
+        "🔐 Login attempt for username: '{}' from IP: [extract from request if available]",
+        login_req.username
+    );
+    
+    // Check if there's already a cookie
+    if let Some(old_cookie) = cookies.get(COOKIE_NAME) {
+        tracing::debug!("Found existing cookie during login, will be replaced");
+        cookies.remove(Cookie::from(COOKIE_NAME));
+    }
     
     let user_id = format!("user-{}", sanitize_username(&login_req.username));
     
-    // Create JWT with 24 hour expiration
     let expiration = Utc::now() + Duration::hours(24);
     let claims = Claims {
         sub: user_id.clone(),
@@ -63,14 +72,23 @@ async fn handle_login(
         exp: expiration.timestamp(),
     };
     
+    tracing::debug!(
+        "Creating JWT for user_id: {}, expires at: {}",
+        user_id,
+        expiration
+    );
+    
     let token = match encode(
         &Header::default(),
         &claims,
         &EncodingKey::from_secret(JWT_SECRET),
     ) {
-        Ok(t) => t,
+        Ok(t) => {
+            tracing::trace!("JWT created successfully (token length: {})", t.len());
+            t
+        }
         Err(e) => {
-            tracing::error!(error = %e, "Failed to create JWT");
+            tracing::error!("❌ Failed to create JWT: {}", e);
             return Json(LoginResponse {
                 success: false,
                 message: "Authentication error".to_string(),
@@ -79,17 +97,20 @@ async fn handle_login(
         }
     };
     
-    // Set HTTP-only cookie
     let mut cookie = Cookie::new(COOKIE_NAME, token);
     cookie.set_http_only(true);
     cookie.set_same_site(tower_cookies::cookie::SameSite::Lax);
     cookie.set_path("/");
     cookie.set_max_age(tower_cookies::cookie::time::Duration::hours(24));
-    // cookie.set_secure(true); // Enable in production with HTTPS
     
+    tracing::debug!("Setting cookie with max_age: 24 hours");
     cookies.add(cookie);
     
-    tracing::info!(user_id = %user_id, username = %login_req.username, "Login successful");
+    tracing::info!(
+        "✅ Login successful - user_id: {}, username: {}",
+        user_id,
+        login_req.username
+    );
     
     Json(LoginResponse {
         success: true,
@@ -173,11 +194,18 @@ where
                 }
             };
 
-            // Try to get JWT from cookie
             let (mut parts, body) = request.into_parts();
+            
+            // ADD EXTENSIVE TRACING
+            tracing::debug!(
+                "CookieAuthService processing request to: {} {}", 
+                parts.method, 
+                parts.uri
+            );
             
             if let Some(cookie) = cookies.get(COOKIE_NAME) {
                 let token = cookie.value();
+                tracing::trace!("Found JWT cookie, attempting validation");
                 
                 match decode::<Claims>(
                     token,
@@ -186,10 +214,11 @@ where
                 ) {
                     Ok(token_data) => {
                         let claims = token_data.claims;
-                        tracing::debug!(
-                            user_id = %claims.sub,
-                            username = %claims.username,
-                            "User authenticated from JWT"
+                        tracing::info!(
+                            "✓ JWT validated successfully - user_id: {}, username: {}, expires: {}",
+                            claims.sub,
+                            claims.username,
+                            claims.exp
                         );
                         parts.extensions.insert(UserIdentity {
                             user_id: claims.sub,
@@ -197,9 +226,21 @@ where
                         });
                     }
                     Err(e) => {
-                        tracing::warn!(error = %e, "Invalid JWT token");
+                        tracing::warn!(
+                            "✗ Invalid JWT token: {} - Clearing bad cookie from client", 
+                            e
+                        );
+                        
+                        // CRITICAL FIX: Clear the bad cookie immediately
+                        cookies.remove(Cookie::from(COOKIE_NAME));
+                        
+                        // If this is a protected route request, return early with redirect
+                        // (The RequireAuthLayer will catch this on protected routes anyway)
+                        tracing::debug!("Bad cookie cleared, request will proceed without auth");
                     }
                 }
+            } else {
+                tracing::trace!("No JWT cookie found in request");
             }
             
             let request = Request::from_parts(parts, body);
@@ -207,7 +248,6 @@ where
         })
     }
 }
-
 /// Layer that enforces login for protected routes
 #[derive(Clone)]
 pub struct RequireAuthLayer {}

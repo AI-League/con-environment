@@ -33,8 +33,8 @@ spec:
             value: "http://ai-proxy-svc/gemini/"
           - name: ANTHROPIC_API_KEY
             value: "hidden"
-          - name: ANTHROPIC_BASE_URL
-            value: "http://ai-proxy-svc/anthropic/"
+          - name: OLLAMA_BASE_URL
+            value: "http://ai-proxy-svc/ollama/"
 ---
 apiVersion: v1
 kind: Service
