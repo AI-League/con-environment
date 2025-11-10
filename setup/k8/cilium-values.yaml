@@ -50,10 +50,14 @@ hubble:
 # Enable local redirect policy for your namespaces
 localRedirectPolicy: true
 
+# BGP Control Plane (for Gateway API LoadBalancer)
+bgpControlPlane:
+  enabled: true
+
 # Ingress controller (for routing to your demos/workshops pods)
 ingressController:
   enabled: true
-  default: false
+  default: true
   loadbalancerMode: shared
 
 # Tunnel mode
@@ -64,8 +68,25 @@ cni:
   chainingMode: none
   exclusive: true
 
-# Gateway
+# Gateway API
 gatewayAPI:
   enabled: true
-  enableAlpn : true
-  enableAppProtocol : true
+  enableAlpn: true
+  enableAppProtocol: true
+
+# Enable host port functionality
+hostPort:
+  enabled: true
+
+# Enable node port
+nodePort:
+  enabled: true
+
+# Enable external IPs for LoadBalancer services
+externalIPs:
+  enabled: true
+
+# LoadBalancer IP allocation
+loadBalancer:
+  mode: snat
+  serviceTopology: true

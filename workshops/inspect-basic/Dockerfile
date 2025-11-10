@@ -34,6 +34,8 @@ COPY --chown=coder:coder ./workspace /home/coder/workspace
 
 WORKDIR /home/coder/workspace
 
+ENV OPENAI_API_KEY="hidden" OPENAI_BASE_URL="http://ai-proxy-svc/openai/" GOOGLE_API_KEY="hidden" GOOGLE_BASE_URL="http://ai-proxy-svc/gemini/" ANTHROPIC_API_KEY="hidden" OLLAMA_BASE_URL="http://ai-proxy-svc/ollama/"
+
 # Create a startup script that activates venv before running code-server
 COPY --chown=coder:coder ./start.sh /home/coder/start.sh
 
