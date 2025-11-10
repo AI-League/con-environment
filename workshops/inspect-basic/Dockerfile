@@ -25,18 +25,21 @@ RUN code-server --install-extension ms-python.python
 RUN code-server --install-extension ukaisi.inspect-ai
 RUN code-server --install-extension janisdd.vscode-edit-csv
 
-# Copy your workspace files
-COPY --chown=coder:coder ./workspace /home/coder/workspace
-
-# Copy and install your specific requirements
+# Copy and install your specific requirements FIRST
 COPY --chown=coder:coder requirements.txt /home/coder/
 RUN pip install --no-cache-dir -r /home/coder/requirements.txt
+
+# Copy download script and run it
+COPY --chown=coder:coder ./workspace /home/coder/workspace
 
 WORKDIR /home/coder/workspace
 
 ENV OPENAI_API_KEY="hidden" OPENAI_BASE_URL="http://ai-proxy-svc/openai/" GOOGLE_API_KEY="hidden" GOOGLE_BASE_URL="http://ai-proxy-svc/gemini/" ANTHROPIC_API_KEY="hidden" OLLAMA_BASE_URL="http://ai-proxy-svc/ollama/"
 
 # Create a startup script that activates venv before running code-server
-RUN echo '#!/bin/bash\nsource /home/coder/venv/bin/activate\nexec code-server --bind-addr 0.0.0.0:8888 --auth none --disable-telemetry /home/coder/workspace' > /home/coder/start.sh && chmod +x /home/coder/start.sh
+COPY --chown=coder:coder ./start.sh /home/coder/start.sh
 
-CMD ["/home/coder/start.sh"]s
+
+RUN chmod +x /home/coder/start.sh
+
+CMD ["/home/coder/start.sh"]
