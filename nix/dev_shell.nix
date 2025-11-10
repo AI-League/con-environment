@@ -210,12 +210,12 @@ in
   environment = {
     imports = [
       inputs.services-flake.processComposeModules.default
-      (multiService ./tilt.nix)
-      (multiService ./local_path_storage.nix)
-      (multiService ./ceph.nix)
-      (multiService ./talos.nix)
-      (multiService ./cilium-patch.nix)
-      (multiService ./container_repository.nix)
+      (multiService ./dev_shell/tilt.nix)
+      (multiService ./dev_shell/local_path_storage.nix)
+      (multiService ./dev_shell/ceph.nix)
+      (multiService ./dev_shell/talos.nix)
+      (multiService ./dev_shell/cilium-patch.nix)
+      (multiService ./dev_shell/container_repository.nix)
     ];
     
     services = {

@@ -8,7 +8,7 @@ let
   inherit (lib) types mkOption mkIf;
 
   # Import con_shell patch generators
-  conShellPatchGenerators = import ./con_shell/patch_generators.nix {
+  conShellPatchGenerators = import ../con_shell/patch_generators.nix {
     inherit pkgs lib;
     conConfig = config;
     ciliumValuesFile = config.ciliumValuesFile;
