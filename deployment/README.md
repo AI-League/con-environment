@@ -9,9 +9,6 @@ Simple Nix-based tool for deploying Talos Linux to physical hardware.
 - ✅ Generate machine configs with proper patches
 - ✅ Discover disks on nodes
 - ✅ Reset nodes before/after conference
-- ❌ No automatic apply (use `talosctl` directly)
-- ❌ No automatic bootstrap (use `talosctl` directly)
-- ❌ No automatic health checks (use `kubectl` directly)
 
 ## Quick Start
 
