@@ -214,7 +214,7 @@ in
       (multiService ./dev_shell/local_path_storage.nix)
       (multiService ./dev_shell/ceph.nix)
       (multiService ./dev_shell/talos.nix)
-      (multiService ./dev_shell/cilium-patch.nix)
+      (multiService ./dev_shell/patches.nix)
       (multiService ./dev_shell/container_repository.nix)
     ];
     
@@ -252,11 +252,11 @@ in
         };
       };
 
-      # cilium-patch."patch0" = {
-      #   enable = true;
-      #   values = ../setup/k8/cilium-values.yaml;
-      #   dataDir = ".data/talos-patches";
-      # };
+      patches."patch0" = {
+        enable = true;
+        ciliumValuesFile = ../setup/k8/cilium-values.yaml;
+        dataDir = ".data/talos-patches";
+      };
 
       talos = {
         cluster = {

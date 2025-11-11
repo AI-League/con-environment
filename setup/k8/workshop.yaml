@@ -317,7 +317,7 @@ data:
   hub-namespace: "workshop-hub-system"
   
   # Workshop pod configuration
-  workshop-image: "ghcr.io/nbhdai/workshop-inspect-basic:bahrain"
+  workshop-image: "ghcr.io/aivillage/workshop-inspect-basic:bahrain"
   workshop-port: "8080"
   workshop-ttl-seconds: "3600"
   workshop-idle-seconds: "600"
@@ -330,7 +330,7 @@ data:
   workshop-mem-limit: "4Gi"
   
   # Sidecar configuration
-  sidecar-image: "ghcr.io/nbhdai/workshop-sidecar:latest"
+  sidecar-image: "ghcr.io/aivillage/workshop-sidecar:latest"
   sidecar-upstream-port: "8080"
   sidecar-proxy-port: "8888"
   sidecar-health-port: "9000"
@@ -368,7 +368,7 @@ spec:
       serviceAccountName: workshop-hub-controller # <-- Use correct SA
       containers:
         - name: workshop-hub
-          image: ghcr.io/nbhdai/workshop-hub:latest
+          image: ghcr.io/aivillage/workshop-hub:latest
           imagePullPolicy: Always
           ports:
             - name: http

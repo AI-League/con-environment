@@ -4,7 +4,7 @@ load('ext://nix_flake', 'build_flake_image')
 
 allow_k8s_contexts('admin@talos-local')
 hostname = os.getenv("HOSTNAME", "localhost")
-default_registry('ghcr.io/nbhdai')
+default_registry('ghcr.io/aivillage')
 update_settings(max_parallel_updates=5)
 
 # ============================================================================
