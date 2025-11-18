@@ -8,6 +8,8 @@
       url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # For generating the talos cilium patch.
+    nix-kube-generators.url = "github:farcaller/nix-kube-generators";
 
     process-compose-flake = {
       url = "github:Platonic-Systems/process-compose-flake";
@@ -41,7 +43,7 @@
 
           rustToolchain = with fenix.packages.${system}; 
           (toolchainOf {
-            channel = "1.89.0";  # or whatever version you need
+            channel = "1.89.0";
             sha256 = "sha256-+9FmLhAOezBZCOziO0Qct1NOrfpjNsXxc/8I0c7BdKE=";
           }).minimalToolchain;
 

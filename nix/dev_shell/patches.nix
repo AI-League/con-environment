@@ -8,15 +8,15 @@ let
   inherit (lib) types mkOption mkIf;
 
   # Import con_shell patch generators
-  cilium_patch = import ../patch/cilium.nix {
+  cilium_patch = import ../patches/cilium.nix {
     inherit pkgs;
-    values = config.ciliumValuesFile;
-    output = config.dataDir + ./cilium.yaml;
+    output = config.dataDir + "/cilium.yaml";
+    kubelib = config.kubelib;
   };
 
-  ghcr_patch = import ../patch/ghcr.nix {
+  ghcr_patch = import ../patches/ghcr.nix {
     inherit pkgs;
-    output = config.dataDir + ./ghcr.yaml;
+    output = config.dataDir + "/ghcr.yaml";
   };
 
   # Script to generate all dev patches
@@ -47,12 +47,17 @@ in
       description = "Path to Cilium values file. If null, uses default values.";
       example = ./setup/k8/cilium-values.yaml;
     };
+
+    kubelib = mkOption {
+      type = types.attrs;
+      description = "Kubelib to generate the chart.";
+    };
   };
 
   config = mkIf config.enable {
     outputs.settings.processes = {
       "${name}" = {
-        command = generateDevPatchesScript;
+        command = "${generateDevPatchesScript}/bin/generate-dev-patches";
       };
     };
   };

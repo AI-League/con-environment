@@ -2,6 +2,8 @@
 let 
   inherit (inputs.services-flake.lib) multiService;
   inherit (inputs) fenix;
+  inherit (inputs) nix-kube-generators;
+  kubelib = nix-kube-generators.lib { inherit pkgs; };
 
   rustToolchain = with fenix.packages.${system}; combine [ 
     stable.toolchain
@@ -256,6 +258,7 @@ in
         enable = true;
         ciliumValuesFile = ../setup/k8/cilium-values.yaml;
         dataDir = ".data/talos-patches";
+        kubelib = kubelib;
       };
 
       talos = {

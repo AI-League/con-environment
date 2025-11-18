@@ -4,7 +4,7 @@
 # GHCR auth patch (a secret) to a file.
 {
   pkgs,
-  outputFile # Required: The root config dir (e.g., ".con")
+  output 
 }:
 
 pkgs.writeShellApplication {
@@ -20,7 +20,7 @@ pkgs.writeShellApplication {
     echo "🔧 Generating GHCR authentication patch..." >&2
     
     # Ensure the output directory exists
-    mkdir -p "$(dirname "${outputFile}")"
+    mkdir -p "$(dirname "${output}")"
 
     # Check for credentials in the environment (SECRETS)
     # This logic correctly remains at runtime.
@@ -47,17 +47,15 @@ pkgs.writeShellApplication {
     AUTH_STRING=$(echo -n "''${GITHUB_USERNAME}:''${GHCR_PAT}" | base64 -w 0)
     
     # Write the final YAML patch *directly* to the output file
-    cat > "${outputFile}" << EOF
+    cat > "${output}" << EOF
 machine:
   registries:
     config:
       ghcr.io:
         auth:
           auth: "''${AUTH_STRING}"
-    time:
-      bootTimeout: 2m
 EOF
 
-    echo "✓ GHCR authentication patch generated: ${outputFile}" >&2
+    echo "✓ GHCR authentication patch generated: ${output}" >&2
   '';
 }
