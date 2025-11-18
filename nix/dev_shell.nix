@@ -179,23 +179,6 @@ in
         cat > .env <<EOF
         ${dotenv}
         EOF
-        set -a; source .envhost 2>/dev/null || true; set +a
-        if [ -f .envhost ]; then
-          set -a; source .envhost; set +a
-          export GHCR_AUTH_STRING=$(echo -n "$GITHUB_USERNAME:$GHCR_PAT" | base64 -w 0)
-          cat > "$DATA_DIR/talos-patches/ghcr.yaml" << PATCH
-          machine:
-            registries:
-              config:
-                ghcr.io:
-                  auth:
-                    auth: "$GHCR_AUTH_STRING"
-            time:
-              bootTimeout: 2m
-        PATCH
-          echo "$GHCR_PAT" | docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin
-          echo "$DH_PAT" | docker login -u "$DH_UNAME" --password-stdin
-        fi
 
         export TALOS_VERSION="v1.11.0"
         export KUBECONFIG="$DATA_DIR/talos/kubeconfig"
