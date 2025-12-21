@@ -8,6 +8,10 @@
       url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    nixos-generators = {
+      url = "github:nix-community/nixos-generators";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     # For generating the talos cilium patch.
     nix-kube-generators.url = "github:farcaller/nix-kube-generators";
 
@@ -130,6 +134,13 @@
           process-compose."default" = dev_shell.environment;
           devShells.default = dev_shell.shell;
           packages = binaries // {
+            nas-installer-iso = inputs.nixos-generators.nixosGenerate {
+              system = "x86_64-linux";
+              format = "install-iso";
+              modules = [
+                ./nix/nas/iso.nix
+              ];
+            };
             # Docker Images
             workshop-sidecar = pkgs.dockerTools.buildImage {
               name = "workshop-sidecar";

@@ -1,31 +1,37 @@
 { config, pkgs, ... }:
 
 {
-  packages.x86_64-linux.installer-iso = nixos-generators.nixosGenerate {
-    system = "x86_64-linux";
-    format = "install-iso";
-    modules = [
-      ({ pkgs, ... }: {
-        services.openssh.enable = true;
-        users.users.root.openssh.authorizedKeys.keys = [ "ssh-ed25519 AAA..." ];
+  # 1. Enable SSH so you can connect to the installer
+  services.openssh.enable = true;
+  
+  # Add the admin key to root so you can SSH in to perform the install
+  users.users.root.openssh.authorizedKeys.keys = [ 
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOugqVQLYj89EwYEGthEt0C7OlZh6xRelBdb3LvFDzJb sven@nbhd.ai" 
+  ];
 
-        # --- ZFS SUPPORT START ---
-        # 1. Load ZFS kernel modules
-        boot.supportedFilesystems = [ "zfs" ];
-        
-        # 2. ZFS requires a hostId (just 8 random hex digits)
-        networking.hostId = "8425e349"; 
-        
-        # 3. Add helpful tools for partitioning and ZFS management
-        environment.systemPackages = with pkgs; [ 
-          parted      # For the OS drive
-          gptfdisk    # For the NVMe drives
-          zfs         # Explicitly include ZFS tools
-          git
-          neovim 
-        ];
-        # --- ZFS SUPPORT END ---
-      })
-    ];
-  };
+  networking.interfaces.eno1.ipv4.addresses = [{
+    address = "192.168.1.50";
+    prefixLength = 24;
+  }];
+  networking.defaultGateway = "192.168.1.1";
+  networking.nameservers = [ "1.1.1.1" "8.8.8.8" ];
+  networking.hostName = "control";
+  networking.hostId = "8425e349";
+
+  # --- ZFS SUPPORT START ---
+  boot.supportedFilesystems = [ "zfs" ];
+  
+  # Tools required for partitioning and bootstrapping
+  environment.systemPackages = with pkgs; [ 
+    parted      # For the OS drive
+    gptfdisk    # For the NVMe drives
+    zfs         # ZFS tools
+    git         # To clone this repo if needed
+    neovim
+  ];
+  # --- ZFS SUPPORT END ---
+
+  # Optional: Copy the target configuration to the ISO for easy access
+  # This places the file at /etc/nixos/configuration.nix inside the ISO
+  environment.etc."nixos/configuration.nix".source = ./configuration.nix;
 }

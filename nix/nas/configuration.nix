@@ -67,21 +67,23 @@
     allowedUDPPorts = [ ];
   };
 
+  networking.interfaces.eno1.ipv4.addresses = [{
+    address = "192.168.1.50";
+    prefixLength = 24;
+  }];
+  networking.defaultGateway = "192.168.1.1";
+  networking.nameservers = [ "1.1.1.1" "8.8.8.8" ];
+
   # ==========================================
   # 4. SSH Configuration
   # ==========================================
   
   services.openssh = {
     enable = true;
-    
-    # CRITICAL: Do NOT automatically open port 22 in the firewall.
-    # We rely on 'trustedInterfaces = [ "tailscale0" ]' above to allow access.
     openFirewall = false;
     
     settings = {
-      # Disable password login for security
       PasswordAuthentication = false;
-      # Disable root login (force user login -> sudo)
       PermitRootLogin = "no";
     };
   };
@@ -110,7 +112,7 @@
     
     # Add your personal public key here (for fallback access if MagicSSH fails)
     openssh.authorizedKeys.keys = [
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK..." 
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOugqVQLYj89EwYEGthEt0C7OlZh6xRelBdb3LvFDzJb sven@nbhd.ai" 
     ];
   };
 
