@@ -86,14 +86,22 @@ zfs create tank/share
 
 ### **Phase 4: Install & Configure**
 
-7. **Generate Hardware Config**
+7. **Place the tailscale API key**
+```bash
+mkdir -p /mnt/var/keys
+echo tskey-auth-... > /mnt/var/keys/tailscale_key
+chmod 600 /mnt/var/keys/tailscale_key
+```
+This has to be tagged with "cluster". 
+
+8. **Generate Hardware Config**
 NixOS needs to know about your specific hardware (disk UUIDs, kernel modules).
 ```bash
 nixos-generate-config --root /mnt
 
 ```
 
-8. **Fetch & Commit Config (Local)** Run these commands on your local machine (laptop).
+9. **Fetch & Commit Config (Local)** Run these commands on your local machine (laptop).
 
 ```bash
 # 1. Fetch the generated hardware config
@@ -104,7 +112,7 @@ git add nix/nas/hardware-configuration.nix
 git commit -m "Add hardware configuration for nas"
 ```
 
-9. **Apply Your Configuration**
+10. **Apply Your Configuration**
 We baked your custom config into the ISO at `/etc/nixos/configuration.nix`. We need to overwrite the default one generated in step 7.
 ```bash
 # Copy your custom config to the mount target
@@ -112,7 +120,7 @@ cp /etc/nixos/configuration.nix /mnt/etc/nixos/configuration.nix
 
 ```
 
-9. **Install NixOS**
+11. **Install NixOS**
 ```bash
 # 1. Copy the flake to the remote installer's temporary directory
 scp -r . root@10.211.0.10:/tmp/flake
@@ -121,11 +129,11 @@ scp -r . root@10.211.0.10:/tmp/flake
 ssh root@10.211.0.10 "nixos-install --flake /tmp/flake#nas --root /mnt"
 ```
 
+Optional: SSH in and change the password for "admin". 
 
-10. **Finish**
+12. **Finish**
 ```bash
 reboot
-
 ```
 
 

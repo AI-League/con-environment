@@ -123,9 +123,16 @@
   # ==========================================
   environment.systemPackages = with pkgs; [
     vim
+    nano
+    talosctl
+    kubectl
     git
     htop
-    zfs # ZFS administration tools
+    zfs
+    zsh
+    k9s
+    cilium-cli
+    hubble
   ];
 
   # Do not change this unless you know what you are doing
