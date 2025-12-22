@@ -135,7 +135,7 @@
           devShells.default = dev_shell.shell;
           packages = binaries // {
             nas-installer-iso = inputs.nixos-generators.nixosGenerate {
-              system = "x86_64-linux";
+              inherit system;
               format = "install-iso";
               modules = [
                 ./nix/nas/iso.nix
