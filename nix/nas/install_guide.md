@@ -137,4 +137,10 @@ reboot
 ```
 
 
-Pull the USB stick. Your Beelink should reboot, claim the static IP configured in `configuration.nix`, and be ready for Tailscale authentication.
+### Phase 5: Remote Updates
+For all future updates, you can deploy changes directly from your local machine.
+
+Bash
+
+# Run this from your local flake directory
+nixos-rebuild switch --flake .#nas --target-host admin@cluster-control --use-remote-sudo

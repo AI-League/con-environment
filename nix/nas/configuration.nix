@@ -1,6 +1,14 @@
 # hosts/my-server/configuration.nix
 { config, pkgs, ... }:
-
+  let
+    inspectorSystem = import (pkgs.path + "/nixos/lib/eval-config.nix") {
+      system = "x86_64-linux";
+      modules = [
+        ./inspector.nix
+      ];
+    };
+    inspectorBuild = inspectorSystem.config.system.build;
+  in
 {
   imports =
     [
@@ -134,6 +142,20 @@
     cilium-cli
     hubble
   ];
+
+  # ==========================================
+  # 8. PXE / Netboot Server (Inspector)
+  # ==========================================
+  services.pixiecore = {
+    enable = true;
+    openFirewall = true; # Opens UDP 67, 69, 4011
+    dhcpNoBind = true; 
+    mode = "boot"; 
+    
+    kernel = "${inspectorBuild.kernel}/bzImage";
+    initrd = "${inspectorBuild.netbootRamdisk}/initrd";
+    cmdLine = "init=${inspectorBuild.toplevel}/init loglevel=4";
+  };
 
   # Do not change this unless you know what you are doing
   system.stateVersion = "24.11"; 

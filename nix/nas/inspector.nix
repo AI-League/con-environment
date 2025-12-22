@@ -1,7 +1,6 @@
 { pkgs, ... }: {
   networking.hostName = "inspector";
-  networking.useDHCP = true;
-
+  
   # Enable SSH so you can connect
   services.openssh.enable = true;
   users.users.root.openssh.authorizedKeys.keys = [ 
