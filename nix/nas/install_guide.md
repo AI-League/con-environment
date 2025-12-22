@@ -143,4 +143,9 @@ For all future updates, you can deploy changes directly from your local machine.
 Bash
 
 # Run this from your local flake directory
-nixos-rebuild switch --flake .#nas --target-host admin@cluster-control --use-remote-sudo
+```bash
+nix run nixpkgs#nixos-rebuild -- switch --flake .#nas \
+  --target-host admin@cluster-control \
+  --build-host admin@cluster-control \
+  --use-remote-sudo
+```

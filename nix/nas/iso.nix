@@ -18,10 +18,7 @@
   networking.hostName = "control";
   networking.hostId = "8425e349";
 
-  # --- ZFS SUPPORT START ---
   boot.supportedFilesystems = [ "zfs" ];
-  
-  # Tools required for partitioning and bootstrapping
   environment.systemPackages = with pkgs; [ 
     parted      # For the OS drive
     gptfdisk    # For the NVMe drives
@@ -29,9 +26,6 @@
     git         # To clone this repo if needed
     neovim
   ];
-  # --- ZFS SUPPORT END ---
 
-  # Optional: Copy the target configuration to the ISO for easy access
-  # This places the file at /etc/nixos/configuration.nix inside the ISO
   environment.etc."nixos/configuration.nix".source = ./configuration.nix;
 }

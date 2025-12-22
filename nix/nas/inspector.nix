@@ -1,6 +1,6 @@
 { pkgs, ... }: {
   networking.hostName = "inspector";
-  
+
   # Enable SSH so you can connect
   services.openssh.enable = true;
   users.users.root.openssh.authorizedKeys.keys = [ 
@@ -29,4 +29,6 @@
     htop
     neofetch
   ];
-}s
+
+  system.stateVersion = "24.11"; 
+}

@@ -38,8 +38,19 @@
         process-compose-flake.flakeModule
       ];
 
+      # Inspector for the booted computers
+      flake.nixosConfigurations.inspector = inputs.nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          (inputs.nixpkgs + "/nixos/modules/installer/netboot/netboot-minimal.nix")
+          ./nix/nas/inspector.nix
+        ];
+      };
+
+      # Nas
       flake.nixosConfigurations.nas = inputs.nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
+        specialArgs = { inherit inputs; };
         modules = [
           ./nix/nas/configuration.nix
         ];

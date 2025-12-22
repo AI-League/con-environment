@@ -1,13 +1,7 @@
 # hosts/my-server/configuration.nix
-{ config, pkgs, ... }:
+{ config, pkgs, inputs, ... }:
   let
-    inspectorSystem = import (pkgs.path + "/nixos/lib/eval-config.nix") {
-      system = "x86_64-linux";
-      modules = [
-        ./inspector.nix
-      ];
-    };
-    inspectorBuild = inspectorSystem.config.system.build;
+    inspectorBuild = inputs.self.nixosConfigurations.inspector.config.system.build;
   in
 {
   imports =
