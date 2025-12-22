@@ -93,8 +93,18 @@ nixos-generate-config --root /mnt
 
 ```
 
+8. **Fetch & Commit Config (Local)** Run these commands on your local machine (laptop).
 
-8. **Apply Your Configuration**
+```bash
+# 1. Fetch the generated hardware config
+scp root@10.211.0.10:/mnt/etc/nixos/hardware-configuration.nix nix/nas/
+
+# 2. Commit it to your local git repo (flake requires files to be tracked)
+git add nix/nas/hardware-configuration.nix
+git commit -m "Add hardware configuration for nas"
+```
+
+9. **Apply Your Configuration**
 We baked your custom config into the ISO at `/etc/nixos/configuration.nix`. We need to overwrite the default one generated in step 7.
 ```bash
 # Copy your custom config to the mount target
@@ -102,12 +112,13 @@ cp /etc/nixos/configuration.nix /mnt/etc/nixos/configuration.nix
 
 ```
 
-
-*Note: `hardware-configuration.nix` was generated in Step 7 and is already in place. Your `configuration.nix` imports it automatically.*
 9. **Install NixOS**
 ```bash
-nixos-install
+# 1. Copy the flake to the remote installer's temporary directory
+scp -r . root@10.211.0.10:/tmp/flake
 
+# 2. Trigger the install
+ssh root@10.211.0.10 "nixos-install --flake /tmp/flake#nas --root /mnt"
 ```
 
 

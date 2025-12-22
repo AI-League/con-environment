@@ -38,6 +38,13 @@
         process-compose-flake.flakeModule
       ];
 
+      flake.nixosConfigurations.nas = inputs.nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          ./nix/nas/configuration.nix
+        ];
+      };
+
       perSystem = { config, self', pkgs, system, lib, ... }:
         let
           hostSystemName = if (builtins.getEnv "DEV_HOSTNAME") != "" then (builtins.getEnv "DEV_HOSTNAME") else "localhost";

@@ -16,7 +16,7 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  networking.hostName = "my-server";
+  networking.hostName = "cluster-control";
   
   # CRITICAL: Required for ZFS. 
   # Generate a unique ID: `head -c4 /dev/urandom | od -A n -t x4`
@@ -105,7 +105,9 @@
   # ==========================================
   # 6. User Account
   # ==========================================
-  
+
+  security.sudo.wheelNeedsPassword = false;
+
   users.users.admin = {
     isNormalUser = true;
     extraGroups = [ "wheel" ]; # Enable 'sudo'
