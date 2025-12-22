@@ -32,7 +32,7 @@ sudo dd if=result/iso/nixos-*.iso of=/dev/rdiskN bs=4m status=progress
 Since we hardcoded the IP in `iso.nix`, you don't need to hunt for it.
 ```bash
 # Replace with the static IP you set in iso.nix
-ssh root@192.168.1.50
+ssh root@10.211.0.10
 
 ```
 
@@ -43,27 +43,26 @@ ssh root@192.168.1.50
 You need to prepare two things: the **OS Drive** (where NixOS lives) and the **ZFS Data Pool** (where your data lives).
 
 5. **Prepare the OS Drive**
-Identify your boot drive (usually the smaller NVMe/SSD, e.g., `/dev/nvme0n1`).
+Identify your boot drive (usually the smaller NVMe/SSD, e.g., `/dev/mmcblk0`).
 ```bash
 # 1. Create a Partition Table
-parted /dev/nvme0n1 -- mklabel gpt
+parted /dev/mmcblk0 -- mklabel gpt
 
 # 2. Create Boot Partition (512MB)
-parted /dev/nvme0n1 -- mkpart ESP fat32 1MB 512MB
-parted /dev/nvme0n1 -- set 1 esp on
+parted /dev/mmcblk0 -- mkpart ESP fat32 1MB 512MB
+parted /dev/mmcblk0 -- set 1 esp on
 
 # 3. Create Root Partition (Rest of disk)
-parted /dev/nvme0n1 -- mkpart primary 512MB 100%
+parted /dev/mmcblk0 -- mkpart primary 512MB 100%
 
 # 4. Format
-mkfs.fat -F 32 -n BOOT /dev/nvme0n1p1
-mkfs.ext4 -L nixos /dev/nvme0n1p2  # Or use ZFS for root if preferred
+mkfs.fat -F 32 -n BOOT /dev/mmcblk0p1
+mkfs.ext4 -L nixos /dev/mmcblk0p2  # Or use ZFS for root if preferred
 
 # 5. Mount Target
-mount /dev/nvme0n1p2 /mnt
+mount /dev/mmcblk0p2 /mnt
 mkdir -p /mnt/boot
-mount /dev/nvme0n1p1 /mnt/boot
-
+mount /dev/mmcblk0p1 /mnt/boot
 ```
 
 
@@ -74,7 +73,7 @@ Your `configuration.nix` expects a ZFS dataset at `tank/share`. You must create 
 lsblk
 
 # Create the pool (e.g., a mirror of two drives)
-zpool create -f -m legacy tank mirror /dev/sda /dev/sdb
+zpool create -f tank raidz1 /dev/nvme0n1 /dev/nvme1n1 /dev/nvme2n1
 
 # Create the dataset
 zfs create tank/share
