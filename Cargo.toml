@@ -2,7 +2,7 @@
 members = [ 
     "crates/sidecar",
     "crates/hub",
-    "crates/integration-tests",
+    "crates/integration-tests", "crates/inspector",
 ]
 default-members = [
      "crates/sidecar",

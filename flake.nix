@@ -125,6 +125,26 @@
               };
             };
 
+            inspector-bin = rustPlatform.buildRustPackage {
+              pname = "inspector";
+              version = "0.1.0";
+              src = ./.;
+              cargoLock.lockFile = ./Cargo.lock;
+
+              buildInputs = commonBuildInputs;
+              nativeBuildInputs = commonNativeBuildInputs;
+              buildAndTestSubdir = "crates/inspector";
+              env = {
+                LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath [ pkgs.openssl ]}";
+              };
+              cargoBuildFlags = [ "-p" "inspector" ];
+              doCheck = false;
+
+              meta = with lib; {
+                mainProgram = "inspector";
+              };
+            };
+
             integration-tests-bin = rustPlatform.buildRustPackage {
               pname = "integration-tests";
               version = "0.1.0";

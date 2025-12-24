@@ -1,8 +1,14 @@
-# hosts/my-server/configuration.nix
 { config, pkgs, inputs, ... }:
   let
-    # Ensure 'specialArgs = { inherit inputs; };' is set in your flake.nix
     inspectorBuild = inputs.self.nixosConfigurations.inspector.config.system.build;
+    bootScript = pkgs.writeText "boot.ipxe" ''
+      #!ipxe
+      dhcp
+      echo Starting Inspector Boot...
+      kernel tftp://10.211.0.10/bzImage init=${inspectorBuild.toplevel}/init loglevel=4
+      initrd tftp://10.211.0.10/initrd
+      boot
+    '';
   in
 {
   imports =
@@ -56,6 +62,7 @@
     
     # FIX: You must open ports for services running on the Physical LAN (enp1s0)
     allowedTCPPorts = [ 
+      22   # Local ssh
       53   # DNS (dnsmasq)
       2049 # NFS
     ]; 
@@ -123,7 +130,7 @@
     nmap
     tcpdump
   ];
-# ==========================================
+  # ==========================================
   # 8. Main DHCP & DNS (Pure Dnsmasq PXE)
   # ==========================================
 
@@ -136,6 +143,7 @@
     settings = {
       interface = [ "enp1s0" ];
       bind-interfaces = true; 
+      log-dhcp = true;
 
       # DNS
       domain-needed = true;
@@ -196,18 +204,6 @@
     "L+ /var/lib/tftpboot/undionly.kpxe - - - - ${pkgs.ipxe}/undionly.kpxe"
     "L+ /var/lib/tftpboot/bzImage - - - - ${inspectorBuild.kernel}/bzImage"
     "L+ /var/lib/tftpboot/initrd - - - - ${inspectorBuild.netbootRamdisk}/initrd"
+    "L+ /var/lib/tftpboot/boot.ipxe - - - - ${bootScript}"
   ];
-
-  # This creates the 'boot.ipxe' script that tells iPXE how to boot your inspector.
-  environment.etc."boot.ipxe" = {
-    target = "../var/lib/tftpboot/boot.ipxe"; # Link it directly into TFTP root
-    text = ''
-      #!ipxe
-      dhcp
-      echo Starting Inspector Boot...
-      kernel tftp://10.211.0.10/bzImage init=${inspectorBuild.toplevel}/init loglevel=4
-      initrd tftp://10.211.0.10/initrd
-      boot
-    '';
-  };
 }
