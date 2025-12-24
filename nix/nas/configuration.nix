@@ -56,13 +56,13 @@
     
     # FIX: You must open ports for services running on the Physical LAN (enp1s0)
     allowedTCPPorts = [ 
-        53   # DNS (dnsmasq)
-        2049 # NFS
+      53   # DNS (dnsmasq)
+      2049 # NFS
     ]; 
     allowedUDPPorts = [ 
-        53   # DNS (dnsmasq)
-        67   # DHCP (dnsmasq)
-             # Note: Pixiecore handles its own ports (69/4011) via the service module
+      53   # DNS
+      67   # DHCP
+      69   # TFTP
     ];
   };
 
@@ -123,9 +123,8 @@
     nmap
     tcpdump
   ];
-
-  # ==========================================
-  # 8. Main DHCP & DNS
+# ==========================================
+  # 8. Main DHCP & DNS (Pure Dnsmasq PXE)
   # ==========================================
 
   services.resolved.enable = false;
@@ -145,50 +144,70 @@
       expand-hosts = true;
       domain = "cluster.local";
 
-      # DHCP Subnet: Physical LAN (10.211.0.0/24)
-      # Pool: .50 - .100 (VMs)
-      # Reserved: .101 - .200 (Hidden from DHCP for Cilium)
-      dhcp-range = [
-        "10.211.0.50,10.211.0.100,255.255.255.0,24h"
-      ];
+      # DHCP Subnet
+      dhcp-range = [ "10.211.0.50,10.211.0.100,255.255.255.0,24h" ];
 
       # Options
       dhcp-option = [
-        "option:router,10.211.0.1"    # Gateway is Unifi
-        "option:dns-server,10.211.0.10"       # DNS is THIS Server
+        "option:router,10.211.0.1"
+        "option:dns-server,10.211.0.10"
       ];
 
-      # Static Hosts (Physical Infrastructure)
+      # Static Hosts
       dhcp-host = [
         "aa:bb:cc:dd:ee:01,10.211.0.20,proxmox-node-01"
         "aa:bb:cc:dd:ee:02,10.211.0.21,k8s-control-plane"
         "aa:bb:cc:dd:ee:03,10.211.0.22,k8s-worker-01"
       ];
-
-      # Hostname Alias
       address = [ "/nas/10.211.0.10" ];
 
-      # PXE Boot configuration
+      # ==========================================
+      # TFTP & PXE Configuration
+      # ==========================================
+      enable-tftp = true;
+      tftp-root = "/var/lib/tftpboot";
+
+      # 1. Tagging: Detect if the client is BIOS (Legacy), UEFI, or iPXE
+      dhcp-match = [
+        "set:efi-x86_64,option:client-arch,7"
+        "set:efi-x86_64,option:client-arch,9"
+        "set:ipxe,175" # iPXE sends option 175
+      ];
+
+      # 2. Boot Logic (Chainloading)
+      # If the client is NOT iPXE yet (!ipxe), send the iPXE bootloader.
       dhcp-boot = [
-        "pixiecore.0,cluster-control,10.211.0.10"
+        "tag:!ipxe,tag:!efi-x86_64,undionly.kpxe"  # Legacy BIOS -> load undionly.kpxe
+        "tag:!ipxe,tag:efi-x86_64,ipxe.efi"        # UEFI -> load ipxe.efi
+        "tag:ipxe,boot.ipxe"                       # If iPXE is running -> load script
       ];
     };
   };
 
   # ==========================================
-  # 9. PXE / Netboot Server (Inspector)
+  # 9. PXE Files Setup (The "Plumbing")
   # ==========================================
+  
+  # This creates the TFTP directory and symlinks your build files into it
+  # so Dnsmasq can serve them.
+  systemd.tmpfiles.rules = [
+    "d /var/lib/tftpboot 0755 root root -"
+    "L+ /var/lib/tftpboot/ipxe.efi - - - - ${pkgs.ipxe}/ipxe.efi"
+    "L+ /var/lib/tftpboot/undionly.kpxe - - - - ${pkgs.ipxe}/undionly.kpxe"
+    "L+ /var/lib/tftpboot/bzImage - - - - ${inspectorBuild.kernel}/bzImage"
+    "L+ /var/lib/tftpboot/initrd - - - - ${inspectorBuild.netbootRamdisk}/initrd"
+  ];
 
-  services.pixiecore = {
-    enable = true;
-    openFirewall = true; # Automatically opens 69/UDP and 4011/UDP
-    dhcpNoBind = true;   # CRITICAL: Allows dnsmasq to handle port 67
-    mode = "boot"; 
-    
-    kernel = "${inspectorBuild.kernel}/bzImage";
-    initrd = "${inspectorBuild.netbootRamdisk}/initrd";
-    cmdLine = "init=${inspectorBuild.toplevel}/init loglevel=4";
+  # This creates the 'boot.ipxe' script that tells iPXE how to boot your inspector.
+  environment.etc."boot.ipxe" = {
+    target = "../var/lib/tftpboot/boot.ipxe"; # Link it directly into TFTP root
+    text = ''
+      #!ipxe
+      dhcp
+      echo Starting Inspector Boot...
+      kernel tftp://10.211.0.10/bzImage init=${inspectorBuild.toplevel}/init loglevel=4
+      initrd tftp://10.211.0.10/initrd
+      boot
+    '';
   };
-
-  system.stateVersion = "24.11"; 
 }
