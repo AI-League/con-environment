@@ -1,0 +1,10 @@
+tqdm
+matplotlib
+torch
+jupyter
+ipykernel
+signify==0.7.1
+maltorch==0.3.5
+lief==0.16.4
+secml-torch==1.3
+git+https://github.com/zangobot/ember.git

@@ -314,6 +314,7 @@ data:
   workshop-name: "test-workshop"
   workshop-namespace: "workshop"
   # CHANGED: Added yolo-l2 and email-indirect workshops
+  # CHANGED v2: added adv-exemples workshop
   config.yaml: |
     workshops:
       - name: "yolo-l2"
@@ -322,6 +323,12 @@ data:
         port: 5000
         env:
           BASE_URL: "/workshop/yolo-l2"
+      - name: "adv.exemples"
+        image: "ghcr.io/nbhdai/workshop-adv-exemples-notebook:latest"
+        description: "Adversarial EXEmples against AI-based AV"
+        port: 5000
+        env:
+          BASE_URL: "/workshop/adv-exemples"
       - name: "email-indirect"
         image: "ghcr.io/nbhdai/workshop-email-indirect-user:latest"
         description: "Email Injection Challenge"
